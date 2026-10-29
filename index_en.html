@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gain and Loss Amount Rating</title>
+
+  <script src="https://unpkg.com/jspsych@7.1.2/dist/index.browser.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.0/dist/index.browser.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.0/dist/index.browser.js"></script>
+  <link href="https://unpkg.com/jspsych@7.1.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: rgb(128, 128, 128);
+      font-family: Arial, "Microsoft YaHei", "SimHei", sans-serif;
+    }
+
+    .jspsych-display-element,
+    .jspsych-content-wrapper,
+    #jspsych-content {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: rgb(128, 128, 128) !important;
+      overflow: hidden !important;
+    }
+
+    .fullscreen-start-screen {
+      box-sizing: border-box;
+      width: min(900px, calc(100vw - 80px));
+      margin: 0 auto 36px auto;
+      background: transparent;
+      color: black;
+      display: block;
+      text-align: center;
+      font-size: 28px;
+      line-height: 1.7;
+    }
+
+    .jspsych-btn,
+    .survey-next-btn {
+      display: block;
+      margin: 0 auto !important;
+      font-size: 27px !important;
+      padding: 12px 30px !important;
+      border-radius: 6px !important;
+      border: 1px solid #777;
+      background: white;
+      color: black;
+      cursor: pointer !important;
+    }
+
+    .matlab-screen {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgb(128, 128, 128);
+      color: rgb(0, 0, 0);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    .matlab-text {
+      white-space: pre-line;
+      font-family: Arial, sans-serif;
+      font-size: clamp(18px, 2.5vh, 32px);
+      line-height: 1.35;
+      color: rgb(0, 0, 0);
+      text-align: center;
+      max-width: 92vw;
+    }
+
+    .fixation-screen {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgb(128, 128, 128);
+      overflow: hidden;
+      cursor: none;
+    }
+
+    .fixation-dot {
+      position: absolute;
+      left: 50vw;
+      top: 50vh;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgb(255, 255, 255);
+      transform: translate(-50%, -50%);
+    }
+
+    .axis-screen {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgb(128, 128, 128);
+      color: white;
+      overflow: hidden;
+      cursor: auto;
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    .countdown {
+      position: absolute;
+      top: 5vh;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 32px;
+      line-height: 1;
+      text-align: center;
+      user-select: none;
+    }
+
+    /* 数字对位置：按照 index左右.html 中的 num-row / num-box 定位方式。
+       修改 top 可上下移动数字对；数值越小越靠上。 */
+    .stim-num-row {
+      position: absolute;
+      top: 23vh;
+      width: 100vw;
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 15vw;
+      color: white;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .stim-num-box {
+      width: 22vw;
+      height: 26vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+      font-weight: normal;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .stim-left,
+    .stim-right { position: static; }
+
+    /* 还原 MATLAB 200pt / 500pt 在 1920×1080 下的高度比例。 */
+    .font-small { font-size: 18.5vh; }
+    .font-large { font-size: 46vh; }
+
+    .axis-block {
+      position: absolute;
+      top: 68vh; /* 修改这里可以上下移动评分线整体：数值越大越靠下。 */
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(1080px, 76vw);
+      text-align: center;
+      color: white;
+    }
+
+    .axis-question {
+      color: white;
+      font-size: 24px;
+      line-height: 1.25;
+      margin-bottom: 20px;
+    }
+
+    .axis-emphasis {
+      color: white;
+      font-weight: bold;
+    }
+
+    .slider-wrap {
+      position: relative;
+      width: 100%;
+      margin: 0 auto;
+      padding: 22px 0 16px 0;
+    }
+
+    input.axis-slider {
+      width: 100%;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input.axis-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid rgba(255,255,255,0.92);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.28);
+      cursor: pointer;
+    }
+
+    input.axis-slider::-moz-range-thumb {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid rgba(255,255,255,0.92);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.28);
+      cursor: pointer;
+    }
+
+    /* 初始状态不显示滑块圆点：被试第一次点击评分线后圆点才出现。 */
+    input.axis-slider.unmoved::-webkit-slider-thumb { opacity: 0; }
+    input.axis-slider.unmoved::-moz-range-thumb { opacity: 0; }
+
+    .axis-label-row {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+      line-height: 1;
+      margin-top: 6px;
+      user-select: none;
+    }
+
+    .axis-label-row span {
+      color: white;
+      font-size: 24px;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .axis-submit-wrap {
+      position: absolute;
+      left: 50%;
+      bottom: 9vh;
+      transform: translateX(-50%);
+      width: 100%;
+      text-align: center;
+    }
+
+    .axis-submit-btn {
+      display: block;
+      margin: 0 auto;
+      font-size: 24px;
+      padding: 10px 28px;
+      border-radius: 6px;
+      border: 1px solid #777;
+      background: white;
+      color: black;
+      cursor: pointer;
+    }
+
+    .submission-screen,
+    .abort-screen {
+      width: 100vw;
+      height: 100vh;
+      background: rgb(128, 128, 128);
+      color: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-family: "SimHei", "Microsoft YaHei", Arial, sans-serif;
+      overflow: hidden;
+      cursor: auto;
+    }
+
+    .submission-screen {
+      box-sizing: border-box;
+      padding: 32px;
+      flex-direction: column;
+      overflow-y: auto;
+      font-family: Arial, sans-serif;
+      font-size: clamp(18px, 2.5vh, 28px);
+      line-height: 1.5;
+    }
+
+    .submission-screen p { max-width: 900px; margin: 0 0 20px; }
+    .submission-screen button, .submission-screen a {
+      margin: 8px !important;
+      font-size: 22px !important;
+    }
+
+    .abort-screen {
+      font-size: 40px;
+      font-weight: bold;
+      line-height: 1.5;
+    }
+    /* Entry pages only: the rating and fixation screens keep their existing styles. */
+    .setup-page {
+      position: fixed; inset: 0; overflow-y: auto; background: #fff;
+      color: #1f2937; cursor: auto; font-family: Arial, Helvetica, sans-serif;
+      text-align: left;
+    }
+    .study-shell { width: min(1100px, calc(100% - 64px)); margin: 46px auto; }
+    .qualtrics-topbar {
+      background: #2f80ed; color: white; padding: 20px 28px;
+      border-radius: 8px 8px 0 0; font-size: 23px; font-weight: 700;
+    }
+    .qualtrics-card {
+      border: 1px solid #d9dfe7; border-top: none; border-radius: 0 0 8px 8px;
+      padding: 42px 52px; box-shadow: 0 2px 8px rgba(31,41,55,.06);
+    }
+    .setup-page h2 { font-size: 30px; line-height: 1.3; margin: 0 0 28px; text-align: center; }
+    .setup-page p, .setup-page li { font-size: 20px; line-height: 1.58; }
+    .setup-page p { margin: 20px 0; }
+    .setup-page li { margin: 16px 0; }
+    .setup-page .doc-red { color: #c00000; font-weight: 700; }
+    .setup-page .instruction-figure { display: block; width: min(770px, 100%); height: auto; margin: 26px auto; }
+    .setup-page .fixation-figure { width: min(400px, 100%); }
+    .setup-page .jspsych-btn, #jspsych-content:has(.fullscreen-message) .jspsych-btn {
+      background: #2f80ed; color: #fff; border: 1px solid #1f5fbf;
+      border-radius: 4px; padding: 12px 28px; font-size: 19px !important;
+      margin: 26px 0 0 !important;
+    }
+    .setup-page .jspsych-btn:disabled, #jspsych-content:has(.fullscreen-message) .jspsych-btn:disabled {
+      opacity: .48; cursor: not-allowed !important;
+    }
+    .human-verification-form {
+      box-sizing: border-box; width: min(640px, calc(100% - 48px)); min-height: 100vh;
+      margin: 0 auto; padding: 28px 0 84px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .verification-question { color: #555; font-size: 20px; font-weight: 700; line-height: 1.35; margin-bottom: 22px; text-align: center; }
+    .verification-image { display: block; width: min(392px, 100%); height: auto; margin-bottom: 22px; }
+    .verification-options { display: grid; gap: 10px; width: 140px; }
+    .verification-options label { display: flex; align-items: center; gap: 12px; padding: 6px 0; color: #555; font-size: 19px; cursor: pointer; }
+    .verification-options input { width: 18px; height: 18px; margin: 0; accent-color: #2f80ed; }
+    .verification-options label:hover, .verification-options label:has(input:checked) { background: #eef5ff; color: #1f5fbf; font-weight: 700; }
+    .fullscreen-message { width: min(980px, calc(100vw - 72px)); margin: 0 auto 20px; text-align: left; color: #1f2937; }
+    .fullscreen-message h2 { font-size: 30px; line-height: 1.25; margin: 0 0 16px; text-align: center; }
+    .fullscreen-message p { font-size: 19px; line-height: 1.72; margin: 11px 0; }
+    .fullscreen-warning { color: #b42318; }
+    .fullscreen-consent { display: flex; align-items: center; gap: 12px; margin-top: 18px; font-size: 19px; font-weight: 700; cursor: pointer; }
+    .fullscreen-consent input { flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: #2f80ed; }
+    #jspsych-content:has(.fullscreen-message) {
+      box-sizing: border-box; display: block; padding: 6vh 0 40px !important;
+      background: #fff !important; overflow-y: auto !important; text-align: left;
+    }
+    #jspsych-content:has(.fullscreen-message) .jspsych-btn { margin-left: max(36px, calc((100vw - 980px) / 2)) !important; }
+  </style>
+</head>
+
+<body><noscript>This task requires JavaScript. Please enable it and reopen the study link.</noscript></body>
+
+<script>
+  // STUDY SETTINGS: paste the completion URL OR code from your Connect project.
+  // Preview with ?preview=1. Preview never uploads or returns a completion code.
+  var DATAPIPE_EXPERIMENT_ID = 'SxwHNCUzbN5m';
+  var CONNECT_COMPLETION_URL = '';
+  var CONNECT_COMPLETION_CODE = '';
+  var STUDY_VERSION = 'connect-en-2026-10-28';
+
+  if (typeof initJsPsych !== 'function' || typeof jsPsychHtmlKeyboardResponse === 'undefined' || typeof jsPsychFullscreen === 'undefined') {
+    document.body.innerHTML = '<div class="submission-screen"><p>The task could not load. Please check your connection and reopen the study link.</p></div>';
+    throw new Error('jsPsych dependency failed to load.');
+  }
+
+  var urlParameters = new URLSearchParams(window.location.search);
+  var previewMode = urlParameters.get('preview') === '1';
+  var connectParticipantId = urlParameters.get('participantId') || urlParameters.get('CONNECT_PID') || '';
+  var connectProjectId = urlParameters.get('projectId') || urlParameters.get('PROJECT_ID') || '';
+  var connectAssignmentId = urlParameters.get('assignmentId') || urlParameters.get('ASSIGNMENT_ID') || '';
+  var sessionId = (window.crypto && typeof window.crypto.randomUUID === 'function') ? window.crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
+  var sessionStartedAt = new Date().toISOString();
+  var submission = null;
+  var uploadInProgress = false;
+  var uploadAccepted = false;
+  var backupKey = 'gain-loss:' + DATAPIPE_EXPERIMENT_ID + ':' + connectParticipantId + ':' + connectProjectId + ':' + connectAssignmentId;
+  var studyLockKey = 'gain-loss-status:' + DATAPIPE_EXPERIMENT_ID + ':' + connectParticipantId + ':' + connectProjectId;
+  var fullscreenAbortArmed = false;
+  var plannedFullscreenExit = false;
+  var entryBlockMessage = '';
+
+  var jsPsych = initJsPsych({
+    use_webaudio: false,
+    on_finish: function () {
+      window.gain_loss_magnitude_data_json = jsPsych.data.get().json();
+      window.gain_loss_magnitude_data_csv = getCleanCsv();
+      if (entryBlockMessage) { showEntryEnd(entryBlockMessage); return; }
+      prepareSubmission();
+    }
+  });
+
+  var timeline = [];
+  var bkRgb = 'rgb(128, 128, 128)';
+  var fontRgb = 'rgb(0, 0, 0)';
+  var stimRgb = 'rgb(255, 255, 255)';
+  var experimentStarted = false;
+  var experimentCompleted = false;
+  var experimentAborted = false;
+  var experimentStartPerfTime = performance.now();
+
+  function getElapsedTime() {
+    return Math.round(performance.now() - experimentStartPerfTime);
+  }
+
+  function addElapsedTime(data) {
+    data.elapsed_time = getElapsedTime();
+  }
+
+  function getScreenResolution() {
+    return String(window.screen.width) + 'x' + String(window.screen.height);
+  }
+
+  var participantId = connectParticipantId || 'preview-' + sessionId;
+
+  jsPsych.data.addProperties({
+    Subject: participantId,
+    connect_participant_id: connectParticipantId,
+    connect_project_id: connectProjectId,
+    connect_assignment_id: connectAssignmentId,
+    experiment_id: DATAPIPE_EXPERIMENT_ID,
+    session_id: sessionId,
+    session_started_at: sessionStartedAt,
+    study_version: STUDY_VERSION,
+    language: 'en',
+    preview: previewMode ? 1 : 0,
+    session_status: 'in_progress',
+    fullscreen_exit_abort: 0,
+    screen_resolution: getScreenResolution()
+  });
+
+  var startText = 'Practice is complete. The main task is about to begin.\n\nPlease stay focused until you finish the task.\n\nWhen you are ready, press the SPACEBAR to begin the main task';
+
+  function instructionScreen(text) {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div class="matlab-screen" style="background:' + bkRgb + '; color:' + fontRgb + ';"><div class="matlab-text">' + text + '</div></div>',
+      choices: [' '],
+      data: { task_trial_index: 0, trial_part: 'instruction' },
+      on_finish: addElapsedTime
+    };
+  }
+
+  function setupShell(content) {
+    return '<div class="setup-page"><div class="study-shell"><div class="qualtrics-topbar">Monetary Amount Rating Task</div><div class="qualtrics-card">' + content + '</div></div></div>';
+  }
+
+  function ratingExampleHtml() {
+    // Static illustration of the existing rating screen: gain large, loss small.
+    return '<svg class="instruction-figure" viewBox="0 0 1920 1080" role="img" aria-label="Example rating screen: large +7 on the left, small minus 4 on the right, and a loss rating scale with no initial marker." xmlns="http://www.w3.org/2000/svg">' +
+      '<rect width="1920" height="1080" fill="rgb(128,128,128)"/>' +
+      '<g fill="white" font-family="Microsoft YaHei, Arial, sans-serif" text-anchor="middle">' +
+      '<text x="605" y="389" dominant-baseline="central" font-size="496.8">+7</text>' +
+      '<text x="1315" y="389" dominant-baseline="central" font-size="199.8">-4</text>' +
+      '<text x="960" y="764" font-size="24">How large does the <tspan font-weight="bold">loss amount</tspan> above feel to you? Use your first impression.</text>' +
+      '<text x="420" y="875" text-anchor="start" font-size="24">Very small</text>' +
+      '<text x="1500" y="875" text-anchor="end" font-size="24">Very large</text></g>' +
+      '<line x1="420" y1="830" x2="1500" y2="830" stroke="white" stroke-opacity=".85" stroke-width="6" stroke-linecap="round"/></svg>';
+  }
+
+  var instructionPages = [
+    '<h2><strong>Monetary Amount Rating Task</strong></h2>' +
+    '<p>In this task, you will see two numbers at the same time. A positive number represents a gain, and a negative number represents a loss. A scale will appear below the numbers, <strong>with <span class="doc-red">Very small</span> at the left end and <span class="doc-red">Very large</span> at the right end</strong>.</p>' +
+    '<p>On each trial, you will be asked to rate either the gain amount or the loss amount. Please base your rating on <strong class="doc-red">your first impression</strong> of how large the specified amount seems to you. Use your mouse to click on the position on the scale that best matches your impression.</p>' +
+    '<p><u>Use positions farther to the right for larger absolute amounts, and positions farther to the left for smaller absolute amounts.</u> However, you do not need to place the smallest amount at the far-left endpoint or the largest amount at the far-right endpoint. <strong>All numbers have absolute values between 3 and 9 <span class="doc-red">(inclusive)</span>.</strong></p>' +
+    '<p>For example, in the image below, <strong>+7</strong> represents a gain of 7, and <strong>−4</strong> represents a loss of 4. In this example, you are asked to rate the size of the loss of 4. <strong class="doc-red">Click on the scale</strong> to indicate your rating. Once you make your selection, the task will automatically advance to the next trial.</p>' +
+    ratingExampleHtml() + '<p>When you are ready, click <strong>“Next”</strong> to continue.</p>',
+
+    ratingExampleHtml() + '<p>Please note:</p><ol>' +
+    '<li>The two numbers may appear in <strong>different font sizes</strong>, as shown above. Font size is not relevant to your rating.</li>' +
+    '<li>On each trial, you may be asked to rate either the gain amount or the loss amount. Which amount you are asked to rate is <strong>determined at random</strong>.</li>' +
+    '<li><strong>Your response <span class="doc-red">cannot be changed</span> once you make your selection.</strong> The task will automatically advance to the next trial. No slider marker is shown initially; <strong><span class="doc-red">click</span> directly on the scale</strong> to select your response.</li>' +
+    '<li>You will complete <strong>3 practice trials</strong> before the formal task begins.</li></ol>' +
+    '<p>When you are ready, click <strong>“Next”</strong> to continue.</p>',
+
+    '<p>Before each trial, a small dot will appear on the screen, as shown below.</p>' +
+    '<p>While the dot is displayed, <strong>you do not need to press any keys or take any other action</strong>. After a random delay of approximately <strong>1–2 seconds</strong>, the rating screen will appear automatically.</p>' +
+    '<svg class="instruction-figure fixation-figure" viewBox="0 0 1920 1080" role="img" aria-label="A small white fixation dot in the center of a gray screen." xmlns="http://www.w3.org/2000/svg"><rect width="1920" height="1080" fill="rgb(128,128,128)"/><circle cx="960" cy="540" r="9" fill="white"/></svg>' +
+    '<p>When you are ready, click <strong>“Next”</strong> to continue.</p>'
+  ];
+
+  function instructionPageTrial(pageIndex) {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: setupShell(instructionPages[pageIndex] + '<button id="instruction-next" class="jspsych-btn" type="button">Next</button>'),
+      choices: 'NO_KEYS',
+      data: { task_trial_index: 0, trial_part: 'instruction', instruction_page: pageIndex + 1 },
+      on_load: function () {
+        var button = document.getElementById('instruction-next');
+        button.addEventListener('click', function () {
+          button.disabled = true;
+          jsPsych.finishTrial({ elapsed_time: getElapsedTime() });
+        });
+      }
+    };
+  }
+
+  function getStoredStudyStatus() {
+    if (previewMode) return null;
+    try { return JSON.parse(window.localStorage.getItem(studyLockKey) || 'null'); }
+    catch (error) { return null; }
+  }
+
+  function setStoredStudyStatus(status) {
+    if (previewMode) return;
+    try { window.localStorage.setItem(studyLockKey, JSON.stringify({ status: status, timestamp: Date.now() })); }
+    catch (error) { /* Continue if browser storage is unavailable, as in the reference study. */ }
+  }
+
+  function showEntryEnd(message) {
+    document.body.innerHTML = setupShell('<h2>The study has ended.</h2><p id="entry-end-message" class="fullscreen-warning"></p><p>Please return this study on Connect. Do not submit a completion code.</p>');
+    document.getElementById('entry-end-message').textContent = message;
+  }
+
+  function humanVerificationTrial() {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div class="setup-page"><form id="human-verification-form" class="human-verification-form" novalidate>' +
+        '<div class="verification-question">Do the two straight lines below have the same length?</div>' +
+        '<img id="verification-image" class="verification-image" src="ModifiedMullerLyer.png" alt="Two horizontal lines with arrowheads for a visual verification question.">' +
+        '<p id="verification-image-error" hidden>The image could not load. Please check your connection and reload this page.</p>' +
+        '<div class="verification-options" role="radiogroup" aria-label="Human verification">' +
+        '<label><input type="radio" name="human_verification_response" value="yes" disabled><span>Yes</span></label>' +
+        '<label><input type="radio" name="human_verification_response" value="no" disabled><span>No</span></label></div></form></div>',
+      choices: 'NO_KEYS',
+      data: { task_trial_index: 0, trial_part: 'human_verification' },
+      on_load: function () {
+        var pageStart = performance.now();
+        var answered = false;
+        var inputs = Array.from(document.querySelectorAll('input[name="human_verification_response"]'));
+        var picture = document.getElementById('verification-image');
+        function enableChoices() { if (!answered) inputs.forEach(function (input) { input.disabled = false; }); }
+        picture.addEventListener('load', enableChoices);
+        picture.addEventListener('error', function () { document.getElementById('verification-image-error').hidden = false; });
+        if (picture.complete && picture.naturalWidth > 0) enableChoices();
+        else if (picture.complete) document.getElementById('verification-image-error').hidden = false;
+        inputs.forEach(function (input) {
+          input.addEventListener('change', function () {
+            if (answered || input.disabled) return;
+            answered = true;
+            var response = input.value;
+            var rt = Math.round(performance.now() - pageStart);
+            inputs.forEach(function (option) { option.disabled = true; });
+            setTimeout(function () {
+              var result = { human_verification_response: response, human_verification_passed: response === 'no' ? 1 : 0, human_verification_rt: rt };
+              jsPsych.data.addProperties(result);
+              if (response === 'yes') {
+                setStoredStudyStatus('failed_verification');
+                entryBlockMessage = 'You did not pass the verification check and therefore cannot participate in this study.';
+                jsPsych.data.addProperties({ session_status: 'failed_verification' });
+                window.alert(entryBlockMessage);
+                jsPsych.endExperiment('');
+                return;
+              }
+              result.elapsed_time = getElapsedTime();
+              jsPsych.finishTrial(result);
+            }, 450);
+          });
+        });
+      }
+    };
+  }
+
+  function randomFixationDuration() { return Math.random() * 400 + 800; }
+
+  function fixationTrial(taskTrialIndex, trialPart) {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div class="fixation-screen" style="background:' + bkRgb + ';"><div class="fixation-dot" style="background:' + stimRgb + ';"></div></div>',
+      choices: 'NO_KEYS',
+      trial_duration: randomFixationDuration,
+      data: {
+        task_trial_index: taskTrialIndex,
+        trial_part: trialPart
+      },
+      on_finish: addElapsedTime
+    };
+  }
+
+  function signedNumberText(value) {
+    return value > 0 ? '+' + value : String(value);
+  }
+
+  function generatePracticeTrials() {
+    var practiceBase = [
+      { pair_id: 'practice_1', gamble_index: 'practice_1', gain_number: 4, loss_number: -6, loss_abs_number: 6 },
+      { pair_id: 'practice_2', gamble_index: 'practice_2', gain_number: 8, loss_number: -5, loss_abs_number: 5 },
+      { pair_id: 'practice_3', gamble_index: 'practice_3', gain_number: 7, loss_number: -7, loss_abs_number: 7 }
+    ];
+
+    var practiceTrials = [];
+
+    for (var i = 0; i < practiceBase.length; i++) {
+      var item = practiceBase[i];
+      var gainOnLeft = Math.random() < 0.5 ? 1 : 0;
+      var gainFontLarger = Math.random() < 0.5 ? 1 : 0;
+      var targetValence = Math.random() < 0.5 ? 'gain' : 'loss';
+      var leftNumber = gainOnLeft === 1 ? item.gain_number : item.loss_number;
+      var rightNumber = gainOnLeft === 1 ? item.loss_number : item.gain_number;
+      var largerFontOnLeft = gainFontLarger === 1 ? gainOnLeft : (gainOnLeft === 1 ? 0 : 1);
+      var targetNumber = targetValence === 'gain' ? item.gain_number : item.loss_number;
+      var targetSide = (targetValence === 'gain' && gainOnLeft === 1) || (targetValence === 'loss' && gainOnLeft === 0) ? 'left' : 'right';
+      var targetFontSize = targetValence === 'gain' ? (gainFontLarger === 1 ? 'large' : 'small') : (gainFontLarger === 1 ? 'small' : 'large');
+
+      practiceTrials.push({
+        pair_id: item.pair_id,
+        gamble_index: item.gamble_index,
+        gain_number: item.gain_number,
+        loss_number: item.loss_number,
+        loss_abs_number: item.loss_abs_number,
+        gain_on_left: gainOnLeft,
+        left_number: leftNumber,
+        right_number: rightNumber,
+        gain_font_larger: gainFontLarger,
+        loss_font_larger: gainFontLarger === 1 ? 0 : 1,
+        larger_font_on_left: largerFontOnLeft,
+        font_congruency: gainFontLarger,
+        target_valence: targetValence,
+        target_side: targetSide,
+        target_number: targetNumber,
+        target_abs_number: Math.abs(targetNumber),
+        target_font_size: targetFontSize,
+        task_trial_index: 'practice_' + (i + 1),
+        trial_part: 'practice'
+      });
+    }
+
+    return practiceTrials;
+  }
+
+  function generateGainLossTrials() {
+    var gambles = [];
+    var gambleIndex = 1;
+
+    for (var gain = 3; gain <= 9; gain++) {
+      for (var lossAbs = 3; lossAbs <= 9; lossAbs++) {
+        var gainOnLeft = Math.random() < 0.5 ? 1 : 0;
+        var loss = -lossAbs;
+        var leftNumber = gainOnLeft === 1 ? gain : loss;
+        var rightNumber = gainOnLeft === 1 ? loss : gain;
+
+        gambles.push({
+          pair_id: 'G' + gain + '_L' + lossAbs,
+          gamble_index: gambleIndex,
+          gain_number: gain,
+          loss_number: loss,
+          loss_abs_number: lossAbs,
+          gain_on_left: gainOnLeft,
+          left_number: leftNumber,
+          right_number: rightNumber
+        });
+        gambleIndex++;
+      }
+    }
+
+    var uniqueTrials = [];
+
+    for (var i = 0; i < gambles.length; i++) {
+      var gamble = gambles[i];
+      var fontOrder = jsPsych.randomization.shuffle([1, 0]); // 1 = 收益大字体；0 = 损失大字体
+
+      for (var f = 0; f < fontOrder.length; f++) {
+        uniqueTrials.push({
+          gamble: gamble,
+          gain_font_larger: fontOrder[f],
+          first_target_valence: Math.random() < 0.5 ? 'gain' : 'loss'
+        });
+      }
+    }
+
+    uniqueTrials = jsPsych.randomization.shuffle(uniqueTrials);
+
+    function makeTrial(uniqueItem, targetValence, targetPass, uniqueTrialIndex) {
+      var gamble = uniqueItem.gamble;
+      var gainFontLarger = uniqueItem.gain_font_larger;
+      var largerFontOnLeft = gainFontLarger === 1 ? gamble.gain_on_left : (gamble.gain_on_left === 1 ? 0 : 1);
+      var targetNumber = targetValence === 'gain' ? gamble.gain_number : gamble.loss_number;
+      var targetAbsNumber = Math.abs(targetNumber);
+      var targetSide = (targetValence === 'gain' && gamble.gain_on_left === 1) || (targetValence === 'loss' && gamble.gain_on_left === 0) ? 'left' : 'right';
+      var targetFontSize = targetValence === 'gain' ? (gainFontLarger === 1 ? 'large' : 'small') : (gainFontLarger === 1 ? 'small' : 'large');
+
+      return {
+        pair_id: gamble.pair_id,
+        gamble_index: gamble.gamble_index,
+        unique_trial_id: gamble.pair_id + '_font' + gainFontLarger,
+        unique_trial_index: uniqueTrialIndex,
+        target_pass: targetPass,
+        gain_number: gamble.gain_number,
+        loss_number: gamble.loss_number,
+        loss_abs_number: gamble.loss_abs_number,
+        gain_on_left: gamble.gain_on_left,
+        left_number: gamble.left_number,
+        right_number: gamble.right_number,
+        gain_font_larger: gainFontLarger,
+        loss_font_larger: gainFontLarger === 1 ? 0 : 1,
+        larger_font_on_left: largerFontOnLeft,
+        font_congruency: gainFontLarger,
+        target_valence: targetValence,
+        target_side: targetSide,
+        target_number: targetNumber,
+        target_abs_number: targetAbsNumber,
+        target_font_size: targetFontSize,
+        trial_part: 'axis_rating'
+      };
+    }
+
+    var trials = [];
+
+    // 第一遍：98 个独特试次，顺序随机；每个试次随机评价 gain 或 loss。
+    for (var j = 0; j < uniqueTrials.length; j++) {
+      trials.push(makeTrial(uniqueTrials[j], uniqueTrials[j].first_target_valence, 1, j + 1));
+    }
+
+    // 第二遍：严格按照第一遍 98 个独特试次的顺序；评价另一个数字。
+    for (var k = 0; k < uniqueTrials.length; k++) {
+      var secondTarget = uniqueTrials[k].first_target_valence === 'gain' ? 'loss' : 'gain';
+      trials.push(makeTrial(uniqueTrials[k], secondTarget, 2, k + 1));
+    }
+
+    for (var n = 0; n < trials.length; n++) { trials[n].task_trial_index = n + 1; }
+    return trials;
+  }
+
+  var practiceTrials = generatePracticeTrials();
+  var axisTrials = generateGainLossTrials();
+
+  function renderAxisPage(row) {
+    var leftClass = row.larger_font_on_left === 1 ? 'font-large' : 'font-small';
+    var rightClass = row.larger_font_on_left === 0 ? 'font-large' : 'font-small';
+    var question;
+    if (row.trial_part === 'attention_check') {
+      leftClass = 'font-small';
+      rightClass = 'font-small';
+      question = '<span class="axis-emphasis">Attention check:</span> Please click "Very large" at the far right end of the scale.';
+    } else {
+      question = row.target_valence === 'gain' ?
+        'How large does the <span class="axis-emphasis">gain amount</span> above feel to you? Use your first impression.' :
+        'How large does the <span class="axis-emphasis">loss amount</span> above feel to you? Use your first impression.';
+    }
+
+    return '' +
+      '<div class="axis-screen">' +
+        '<div class="stim-num-row">' +
+          '<div class="stim-num-box stim-left ' + leftClass + '">' + signedNumberText(row.left_number) + '</div>' +
+          '<div class="stim-num-box stim-right ' + rightClass + '">' + signedNumberText(row.right_number) + '</div>' +
+        '</div>' +
+        '<div id="axis-form">' +
+          '<div class="axis-block">' +
+            '<div class="axis-question">' + question + '</div>' +
+            '<div class="slider-wrap">' +
+              '<input class="axis-slider unmoved" id="target-slider" name="target_position" type="range" min="0" max="10" step="0.01" value="5">' +
+              '<div class="axis-label-row"><span>Very small</span><span>Very large</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function makeAxisTrial(row) {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: renderAxisPage(row),
+      choices: 'NO_KEYS',
+      data: {
+        task_trial_index: row.task_trial_index,
+        trial_part: row.trial_part === 'practice' ? 'practice_axis_rating' : row.trial_part,
+        pair_id: row.pair_id,
+        gamble_index: row.gamble_index,
+        unique_trial_id: row.unique_trial_id,
+        unique_trial_index: row.unique_trial_index,
+        target_pass: row.target_pass,
+        gain_number: row.gain_number,
+        loss_number: row.loss_number,
+        loss_abs_number: row.loss_abs_number,
+        gain_on_left: row.gain_on_left,
+        left_number: row.left_number,
+        right_number: row.right_number,
+        gain_font_larger: row.gain_font_larger,
+        loss_font_larger: row.loss_font_larger,
+        larger_font_on_left: row.larger_font_on_left,
+        font_congruency: row.font_congruency,
+        target_valence: row.target_valence,
+        target_side: row.target_side,
+        target_number: row.target_number,
+        target_abs_number: row.target_abs_number,
+        target_font_size: row.target_font_size
+      },
+      on_load: function () {
+        var slider = document.getElementById('target-slider');
+        var startTime = performance.now();
+        var positions = [];
+        var rts = [];
+        var moved = false;
+        var finished = false;
+
+        function finishBy(reason) {
+          if (finished) return;
+          finished = true;
+
+          var targetValue = moved ? parseFloat(slider.value) : null;
+          var positionJson = JSON.stringify(positions);
+          var rtJson = JSON.stringify(rts);
+
+          jsPsych.finishTrial({
+            position: targetValue,
+            target_position: targetValue,
+            response_made: moved ? 1 : 0,
+            timeout: 0,
+            position_json: positionJson,
+            target_position_json: positionJson,
+            slider_move_count: positions.length,
+            target_slider_move_count: positions.length,
+            slider_rts_json: rtJson,
+            target_slider_rts_json: rtJson,
+            target_rt: rts.length > 0 ? rts[rts.length - 1] : null,
+            elapsed_time: getElapsedTime()
+          });
+        }
+
+        function recordFirstSliderAction() {
+          if (moved || finished) return;
+          var nowRt = Math.round(performance.now() - startTime);
+          slider.classList.remove('unmoved');
+          moved = true;
+          positions.push(parseFloat(slider.value));
+          rts.push(nowRt);
+          slider.style.pointerEvents = 'none';
+
+          setTimeout(function () {
+            finishBy('click');
+          }, 700);
+        }
+
+        slider.addEventListener('input', recordFirstSliderAction);
+      }
+    };
+  }
+
+  function breakTrial(breakIndex, completedTrials, totalTrials) {
+    var progressText = 'half';
+    var lineBreak = '\n\n';
+
+    function makeBreakText(firstLine, lastLine) {
+      return firstLine + lineBreak + 'You have completed ' + progressText + ' of the task.' + lineBreak + lastLine;
+    }
+
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div class="matlab-screen" style="cursor:auto;"><div class="matlab-text" id="break-text">' + makeBreakText('Please take a short break.', 'You can continue in 15 seconds by pressing the SPACEBAR.') + '</div></div>',
+      choices: 'NO_KEYS',
+      data: {
+        task_trial_index: 0,
+        trial_part: 'break',
+        break_index: breakIndex,
+        completed_trials: completedTrials
+      },
+      on_load: function () {
+        var allowContinue = false;
+        var start = performance.now();
+        var breakText = document.getElementById('break-text');
+
+        var breakTimer = setInterval(function () {
+          var elapsedSec = Math.floor((performance.now() - start) / 1000);
+          var remainSec = Math.max(0, 15 - elapsedSec);
+
+          if (remainSec > 0) {
+            breakText.textContent = makeBreakText('Please take a short break.', 'You can continue in ' + remainSec + ' seconds by pressing the SPACEBAR.');
+          } else {
+            allowContinue = true;
+            breakText.textContent = makeBreakText('The break is over.', 'Press the SPACEBAR to continue');
+            clearInterval(breakTimer);
+          }
+        }, 250);
+
+        var keyListener = function (event) {
+          if (event.code === 'Space' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!allowContinue) return;
+            document.removeEventListener('keydown', keyListener, true);
+            clearInterval(breakTimer);
+            jsPsych.finishTrial({ elapsed_time: getElapsedTime() });
+          }
+        };
+
+        document.addEventListener('keydown', keyListener, true);
+      }
+    };
+  }
+
+  function cleanValueForCsv(value) {
+    if (value === null || typeof value === 'undefined') return '';
+    var stringValue = String(value);
+    if (/[",\n\r]/.test(stringValue)) return '"' + stringValue.replace(/"/g, '""') + '"';
+    return stringValue;
+  }
+
+  function getCleanCsv() {
+    var keepColumns = [
+      'Subject',
+      'connect_participant_id',
+      'connect_project_id',
+      'connect_assignment_id',
+      'experiment_id',
+      'session_id',
+      'session_started_at',
+      'study_version',
+      'language',
+      'preview',
+      'session_status',
+      'fullscreen_exit_abort',
+      'fullscreen_started',
+      'human_verification_response',
+      'human_verification_passed',
+      'human_verification_rt',
+      'instruction_page',
+      'screen_resolution',
+      'elapsed_time',
+      'trial_index',
+      'trial_type',
+      'trial_part',
+      'pair_id',
+      'gamble_index',
+      'unique_trial_id',
+      'unique_trial_index',
+      'target_pass',
+      'gain_number',
+      'loss_number',
+      'loss_abs_number',
+      'gain_on_left',
+      'left_number',
+      'right_number',
+      'gain_font_larger',
+      'loss_font_larger',
+      'larger_font_on_left',
+      'font_congruency',
+      'target_valence',
+      'target_side',
+      'target_number',
+      'target_abs_number',
+      'target_font_size',
+      'position',
+      'target_position',
+      'response_made',
+      'timeout',
+      'position_json',
+      'target_position_json',
+      'slider_move_count',
+      'target_slider_move_count',
+      'slider_rts_json',
+      'target_slider_rts_json',
+      'target_rt',
+      'break_index',
+      'completed_trials'
+    ];
+
+    var rows = jsPsych.data.get().values().map(function (row) {
+      return {
+        Subject: row.Subject,
+        connect_participant_id: row.connect_participant_id,
+        connect_project_id: row.connect_project_id,
+        connect_assignment_id: row.connect_assignment_id,
+        experiment_id: row.experiment_id,
+        session_id: row.session_id,
+        session_started_at: row.session_started_at,
+        study_version: row.study_version,
+        language: row.language,
+        preview: row.preview,
+        session_status: row.session_status,
+        fullscreen_exit_abort: row.fullscreen_exit_abort,
+        fullscreen_started: row.fullscreen_started,
+        human_verification_response: row.human_verification_response,
+        human_verification_passed: row.human_verification_passed,
+        human_verification_rt: row.human_verification_rt,
+        instruction_page: row.instruction_page,
+        screen_resolution: row.screen_resolution,
+        elapsed_time: row.elapsed_time,
+        trial_index: typeof row.task_trial_index === 'undefined' ? '' : row.task_trial_index,
+        trial_type: row.trial_type,
+        trial_part: row.trial_part,
+        pair_id: row.pair_id,
+        gamble_index: row.gamble_index,
+        unique_trial_id: row.unique_trial_id,
+        unique_trial_index: row.unique_trial_index,
+        target_pass: row.target_pass,
+        gain_number: row.gain_number,
+        loss_number: row.loss_number,
+        loss_abs_number: row.loss_abs_number,
+        gain_on_left: row.gain_on_left,
+        left_number: row.left_number,
+        right_number: row.right_number,
+        gain_font_larger: row.gain_font_larger,
+        loss_font_larger: row.loss_font_larger,
+        larger_font_on_left: row.larger_font_on_left,
+        font_congruency: row.font_congruency,
+        target_valence: row.target_valence,
+        target_side: row.target_side,
+        target_number: row.target_number,
+        target_abs_number: row.target_abs_number,
+        target_font_size: row.target_font_size,
+        position: row.position,
+        target_position: row.target_position,
+        response_made: row.response_made,
+        timeout: row.timeout,
+        position_json: row.position_json,
+        target_position_json: row.target_position_json,
+        slider_move_count: row.slider_move_count,
+        target_slider_move_count: row.target_slider_move_count,
+        slider_rts_json: row.slider_rts_json,
+        target_slider_rts_json: row.target_slider_rts_json,
+        target_rt: row.target_rt,
+        break_index: row.break_index,
+        completed_trials: row.completed_trials
+      };
+    });
+
+    var csv = keepColumns.join(',') + '\n';
+    csv += rows.map(function (row) {
+      return keepColumns.map(function (col) { return cleanValueForCsv(row[col]); }).join(',');
+    }).join('\n');
+    return csv;
+  }
+
+  function abortExperimentBecauseFullscreenExit() {
+    if (experimentAborted || experimentCompleted) return;
+    experimentAborted = true;
+    fullscreenAbortArmed = false;
+    setStoredStudyStatus('fullscreen_exit');
+    jsPsych.data.addProperties({ fullscreen_exit_abort: 1, session_status: 'aborted_fullscreen' });
+    jsPsych.endExperiment('<div class="abort-screen">You exited full-screen mode. The task has been stopped.\nPlease do not attempt the task again.</div>');
+  }
+
+  function currentFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || null;
+  }
+
+  function handleFullscreenChange() {
+    if (fullscreenAbortArmed && !plannedFullscreenExit && !experimentCompleted && !currentFullscreenElement()) abortExperimentBecauseFullscreenExit();
+  }
+
+  ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(function (eventName) {
+    document.addEventListener(eventName, handleFullscreenChange);
+  });
+
+  function exitFullscreenNormally() {
+    plannedFullscreenExit = true;
+    fullscreenAbortArmed = false;
+    var exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+    if (currentFullscreenElement() && exit) {
+      var result = exit.call(document);
+      if (result && result.catch) result.catch(function () {});
+    }
+  }
+
+  var enter_fullscreen_trial = {
+    type: jsPsychFullscreen,
+    fullscreen_mode: true,
+    message: '<div class="fullscreen-message"><h2>Welcome to the Study</h2>' +
+      '<p>The purpose of this study is to examine how people perceive monetary amounts. Your careful participation is very important to us.</p>' +
+      '<p>Your responses will be used for research purposes only. Your participation is voluntary. You have the right to withdraw from the study at any time.</p>' +
+      '<p>This study must be completed on a <strong>desktop</strong> or <strong>laptop computer</strong>. Please enter fullscreen mode to begin. <span class="fullscreen-warning">If you exit fullscreen mode before the study ends, the study will stop automatically.</span></p>' +
+      '<p>By checking the box below and continuing, you confirm that you have read the information above and agree to participate in this study.</p>' +
+      '<label class="fullscreen-consent"><input id="ethics-consent" type="checkbox"><span>I acknowledge the information above and agree to participate in this study.</span></label></div>',
+    button_label: 'Enter fullscreen and start',
+    data: { task_trial_index: 0, trial_part: 'full_screen' },
+    on_load: function () {
+      var consent = document.getElementById('ethics-consent');
+      var button = document.getElementById('jspsych-fullscreen-btn');
+      button.disabled = true;
+      consent.addEventListener('change', function () { button.disabled = !consent.checked; });
+    },
+    on_finish: function (data) {
+      plannedFullscreenExit = false;
+      var fullscreenStarted = currentFullscreenElement() ? 1 : 0;
+      jsPsych.data.addProperties({ fullscreen_started: fullscreenStarted });
+      addElapsedTime(data);
+      if (!fullscreenStarted || window.innerWidth < 900 || window.innerHeight < 600) {
+        entryBlockMessage = !fullscreenStarted ? 'The task requires fullscreen mode. Please reopen the study in a browser that supports fullscreen.' : 'This study requires a fullscreen display of at least 900 x 600 pixels.';
+        jsPsych.endExperiment('');
+        return;
+      }
+      experimentStarted = true;
+      fullscreenAbortArmed = true;
+    }
+  };
+
+  timeline.push(humanVerificationTrial());
+  timeline.push(enter_fullscreen_trial);
+  for (var instructionPage = 0; instructionPage < instructionPages.length; instructionPage++) {
+    timeline.push(instructionPageTrial(instructionPage));
+  }
+
+  var practiceTimeline = [];
+  for (var p = 0; p < practiceTrials.length; p++) {
+    practiceTimeline.push(fixationTrial(practiceTrials[p].task_trial_index, 'practice_fixation'));
+    practiceTimeline.push(makeAxisTrial(practiceTrials[p]));
+  }
+
+  timeline.push({
+    timeline: practiceTimeline
+  });
+
+  timeline.push(instructionScreen(startText));
+
+  function makeAttentionCheckRow() {
+    return {
+      task_trial_index: 'attention_check_after_97',
+      trial_part: 'attention_check',
+      pair_id: 'attention_check_97',
+      gamble_index: 'attention_check_97',
+      unique_trial_id: 'attention_check_97',
+      unique_trial_index: '',
+      target_pass: '',
+      gain_number: 0,
+      loss_number: 0,
+      loss_abs_number: 0,
+      gain_on_left: '',
+      left_number: 0,
+      right_number: 0,
+      gain_font_larger: '',
+      loss_font_larger: '',
+      larger_font_on_left: 0,
+      font_congruency: '',
+      target_valence: 'attention_check',
+      target_side: '',
+      target_number: 0,
+      target_abs_number: 0,
+      target_font_size: 'small'
+    };
+  }
+
+  var breakAfter = [98];
+  var breakIndex = 1;
+
+  for (var i = 0; i < axisTrials.length; i++) {
+    timeline.push(fixationTrial(axisTrials[i].task_trial_index, 'fixation'));
+    timeline.push(makeAxisTrial(axisTrials[i]));
+
+    if (i + 1 === 97) {
+      timeline.push(fixationTrial('attention_check_after_97', 'attention_fixation'));
+      timeline.push(makeAxisTrial(makeAttentionCheckRow()));
+    }
+
+    if (breakAfter.indexOf(i + 1) !== -1) {
+      timeline.push(breakTrial(breakIndex, i + 1, axisTrials.length));
+      breakIndex++;
+    }
+  }
+
+  var end_trial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div class="submission-screen">Saving your responses. Please keep this page open.</div>',
+    choices: 'NO_KEYS',
+    trial_duration: 1,
+    data: { task_trial_index: 0, trial_part: 'task_complete' },
+    on_start: function () {
+      experimentCompleted = true;
+      jsPsych.data.addProperties({ session_status: 'completed' });
+    },
+    on_finish: addElapsedTime
+  };
+
+  timeline.push(end_trial);
+
+  function showMessage(message) {
+    document.body.innerHTML = '<main class="submission-screen" aria-live="polite"><p id="submission-message"></p><div id="submission-actions"></div></main>';
+    document.getElementById('submission-message').textContent = message;
+  }
+
+  function addButton(label, action) {
+    var button = document.createElement('button');
+    button.className = 'jspsych-btn';
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', action);
+    document.getElementById('submission-actions').appendChild(button);
+  }
+
+  function persistSubmission() {
+    if (previewMode || !submission) return;
+    try { sessionStorage.setItem(backupKey, JSON.stringify(submission)); }
+    catch (error) { console.warn('Could not keep a session backup.', error); }
+  }
+
+  function downloadBackup() {
+    if (!submission) return;
+    var blob = new Blob([submission.csv], { type: 'text/csv;charset=utf-8' });
+    var objectUrl = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = submission.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(objectUrl); }, 1000);
+  }
+
+  function prepareSubmission() {
+    submission = {
+      experimentId: DATAPIPE_EXPERIMENT_ID,
+      participantId: participantId,
+      filename: (previewMode ? 'preview_' : 'connect_') + sessionId + (experimentAborted ? '_partial' : '') + '.csv',
+      csv: getCleanCsv(),
+      completed: experimentCompleted && !experimentAborted,
+      accepted: false
+    };
+    persistSubmission();
+    if (previewMode) {
+      showMessage('Preview finished. No data were uploaded, and no Connect completion was submitted.');
+      addButton('Download preview data', downloadBackup);
+      addButton('Exit fullscreen', exitFullscreenNormally);
+      return;
+    }
+    uploadSubmission();
+  }
+
+  function showAcceptedSubmission() {
+    if (!submission.completed) {
+      showMessage('The task ended because you left full-screen mode. Your responses so far have been saved. Please contact the researcher through Connect for instructions; this is not a completed submission.');
+      return;
+    }
+    setStoredStudyStatus('completed');
+    if (CONNECT_COMPLETION_URL) {
+      showMessage('Thank you! Your responses have been saved. Click below to return to Connect and complete your submission.');
+      addButton('Return to Connect', function () { exitFullscreenNormally(); window.location.assign(CONNECT_COMPLETION_URL); });
+    } else if (CONNECT_COMPLETION_CODE) {
+      showMessage('Thank you! Your responses have been saved. Return to Connect and enter this completion code: ' + CONNECT_COMPLETION_CODE);
+      addButton('Finish', exitFullscreenNormally);
+    } else {
+      showMessage('Your responses have been saved. Please contact the researcher through Connect for completion instructions.');
+      addButton('Finish', exitFullscreenNormally);
+    }
+  }
+
+  async function uploadSubmission() {
+    if (previewMode || uploadInProgress || uploadAccepted || !submission) return;
+    uploadInProgress = true;
+    showMessage(submission.completed ? 'Saving your responses. Please keep this page open.' : 'The task has ended because you left full-screen mode. Saving your responses so far. Please keep this page open.');
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function () { controller.abort(); }, 65000);
+    try {
+      var response = await fetch('https://pipe.jspsych.org/api/data/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          experimentID: DATAPIPE_EXPERIMENT_ID,
+          filename: submission.filename,
+          data: submission.csv
+        }),
+        signal: controller.signal
+      });
+      var result = await response.json();
+      // 202 means DataPipe has accepted the data into its durable queue.
+      // Do not retry accepted uploads, even if the provider is temporarily offline.
+      var accepted = response.ok && !result.error && (response.status === 202 || ((response.status === 200 || response.status === 201) && result.message === 'Success'));
+      if (!accepted) {
+        var failure = new Error('Upload not accepted.');
+        failure.code = result.error || 'UNEXPECTED_RESPONSE';
+        throw failure;
+      }
+      uploadAccepted = true;
+      submission.accepted = true;
+      persistSubmission();
+      showAcceptedSubmission();
+    } catch (error) {
+      if (error.code === 'FILE_EXISTS' || error.code === 'OSF_FILE_EXISTS') {
+        showMessage('A file for this session already exists, but we could not confirm its contents. Please download a backup and contact the researcher through Connect. Do not repeat the task.');
+      } else {
+        showMessage('We could not confirm that your responses were saved. Please keep this page open, check your connection, and try saving again. You can also download a backup and contact the researcher through Connect. Do not repeat the task.');
+        addButton('Try saving again', uploadSubmission);
+      }
+      addButton('Download backup', downloadBackup);
+      console.warn('Data upload was not confirmed:', error.code || error.name);
+    } finally {
+      clearTimeout(timeoutId);
+      uploadInProgress = false;
+    }
+  }
+
+  window.addEventListener('beforeunload', function (event) {
+    if (!previewMode && !uploadAccepted && (experimentStarted || submission)) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+
+  function startStudy() {
+    if (!previewMode) {
+      if (!connectParticipantId) {
+        showMessage('Your Connect participant ID is missing. Please open the study using the link in your Connect project.');
+        return;
+      }
+      if (!CONNECT_COMPLETION_URL && !CONNECT_COMPLETION_CODE) {
+        showMessage('This study is not ready to accept participants yet. Please contact the researcher through Connect.');
+        return;
+      }
+      if (CONNECT_COMPLETION_URL) {
+        try {
+          if (new URL(CONNECT_COMPLETION_URL).protocol !== 'https:') throw new Error('Use HTTPS.');
+        } catch (error) {
+          showMessage('The study completion link is not configured correctly. Please contact the researcher through Connect.');
+          return;
+        }
+      }
+      try {
+        var saved = JSON.parse(sessionStorage.getItem(backupKey) || 'null');
+        if (saved && saved.experimentId === DATAPIPE_EXPERIMENT_ID && saved.participantId === participantId && typeof saved.csv === 'string' && typeof saved.filename === 'string') {
+          submission = saved;
+          uploadAccepted = saved.accepted === true;
+          if (uploadAccepted) showAcceptedSubmission();
+          else {
+            showMessage('Your previous session has ended and its responses are ready to save. Please continue saving them; do not repeat the task.');
+            addButton('Save my responses', uploadSubmission);
+            addButton('Download backup', downloadBackup);
+          }
+          return;
+        }
+      } catch (error) { console.warn('Could not restore a session backup.', error); }
+    }
+    var storedStatus = getStoredStudyStatus();
+    if (storedStatus && ['failed_verification', 'fullscreen_exit', 'completed'].indexOf(storedStatus.status) !== -1) {
+      if (storedStatus.status === 'completed') {
+        submission = { completed: true };
+        uploadAccepted = true;
+        showAcceptedSubmission();
+      } else {
+        showEntryEnd('You are not eligible to continue this study.');
+      }
+      return;
+    }
+    var mobileLike = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+    if (mobileLike || window.innerWidth < 900 || window.innerHeight < 600) {
+      showMessage(mobileLike ? 'This study must be completed on a desktop or laptop computer. Please return the study on Connect and do not continue on this device.' : 'Please maximize your browser window and refresh the page to continue. This study requires a window of at least 900 x 600 pixels.');
+      if (!mobileLike) addButton('Refresh after maximizing', function () { window.location.reload(); });
+      return;
+    }
+    jsPsych.run(timeline);
+  }
+
+  startStudy();
+</script>
+</html>
