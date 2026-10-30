@@ -360,6 +360,17 @@
       background: #fff !important; overflow-y: auto !important; text-align: left;
     }
     #jspsych-content:has(.fullscreen-message) .jspsych-btn { margin-left: max(36px, calc((100vw - 980px) / 2)) !important; }
+    .setup-page .questionnaire-field { border: 0; padding: 0; margin: 30px 0; min-width: 0; }
+    .setup-page .questionnaire-field legend { font-size: 20px; line-height: 1.5; font-weight: 700; margin-bottom: 14px; }
+    .setup-page .questionnaire-options { display: grid; gap: 10px; }
+    .setup-page .questionnaire-option { display: flex; align-items: baseline; gap: 12px; font-size: 19px; line-height: 1.5; cursor: pointer; }
+    .setup-page .questionnaire-option input { flex-shrink: 0; width: 18px; height: 18px; margin: 0; accent-color: #2f80ed; }
+    .setup-page .questionnaire-scale { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+    .setup-page .questionnaire-scale .questionnaire-option { flex-direction: column; align-items: center; min-width: 35px; gap: 9px; }
+    .setup-page .scale-endpoints { display: flex; justify-content: space-between; gap: 24px; margin-top: 14px; font-size: 17px; }
+    .setup-page .scale-endpoints span:last-child { text-align: right; }
+    .setup-page .ladder-figure { display: block; width: min(320px, 100%); height: auto; margin: 24px auto; }
+    .setup-page .questionnaire-comments { display: block; box-sizing: border-box; width: 100%; min-height: 180px; padding: 14px; font: 19px/1.5 Arial, sans-serif; border: 1px solid #9ca3af; border-radius: 4px; resize: vertical; }
   </style>
 </head>
 
@@ -394,6 +405,10 @@
   var fullscreenAbortArmed = false;
   var plannedFullscreenExit = false;
   var entryBlockMessage = '';
+  var comprehensionAttempt = 0;
+  var comprehensionPassed = false;
+  var comprehensionWrongQuestions = [];
+  var terminationReason = '';
 
   var jsPsych = initJsPsych({
     use_webaudio: false,
@@ -467,7 +482,7 @@
       '<g fill="white" font-family="Microsoft YaHei, Arial, sans-serif" text-anchor="middle">' +
       '<text x="605" y="389" dominant-baseline="central" font-size="496.8">+7</text>' +
       '<text x="1315" y="389" dominant-baseline="central" font-size="199.8">-4</text>' +
-      '<text x="960" y="764" font-size="24">How large does the <tspan font-weight="bold">loss amount</tspan> above feel to you? Use your first impression.</text>' +
+      '<text x="960" y="764" font-size="24">Based on your first impression, please rate how large the <tspan font-weight="bold">loss amount</tspan> shown above seems to you.</text>' +
       '<text x="420" y="875" text-anchor="start" font-size="24">Very small</text>' +
       '<text x="1500" y="875" text-anchor="end" font-size="24">Very large</text></g>' +
       '<line x1="420" y1="830" x2="1500" y2="830" stroke="white" stroke-opacity=".85" stroke-width="6" stroke-linecap="round"/></svg>';
@@ -475,23 +490,23 @@
 
   var instructionPages = [
     '<h2><strong>Monetary Amount Rating Task</strong></h2>' +
-    '<p>In this task, you will see two numbers at the same time. A positive number represents a gain, and a negative number represents a loss. A scale will appear below the numbers, <strong>with <span class="doc-red">Very small</span> at the left end and <span class="doc-red">Very large</span> at the right end</strong>.</p>' +
-    '<p>On each trial, you will be asked to rate either the gain amount or the loss amount. Please base your rating on <strong class="doc-red">your first impression</strong> of how large the specified amount seems to you. Use your mouse to click on the position on the scale that best matches your impression.</p>' +
-    '<p><u>Use positions farther to the right for larger absolute amounts, and positions farther to the left for smaller absolute amounts.</u> However, you do not need to place the smallest amount at the far-left endpoint or the largest amount at the far-right endpoint. <strong>All numbers have absolute values between 3 and 9 <span class="doc-red">(inclusive)</span>.</strong></p>' +
-    '<p>For example, in the image below, <strong>+7</strong> represents a gain of 7, and <strong>−4</strong> represents a loss of 4. In this example, you are asked to rate the size of the loss of 4. <strong class="doc-red">Click on the scale</strong> to indicate your rating. Once you make your selection, the task will automatically advance to the next trial.</p>' +
-    ratingExampleHtml() + '<p>When you are ready, click <strong>“Next”</strong> to continue.</p>',
+    '<p>In this task, you will see two monetary amounts at the same time. A positive number indicates a gain, and a negative number indicates a loss. All amounts are in US dollars. The dollar sign is omitted from the amounts shown on screen.</p>' +
+    '<p>On each trial, you will be asked to rate either the gain amount or the loss amount. Based on <strong class="doc-red">your first impression</strong>, please indicate how large that amount seems to you by clicking on the rating scale below the numbers. <strong>The left end of the scale is labeled “<span class="doc-red">Very small</span>,” and the right end is labeled “<span class="doc-red">Very large</span>.”</strong></p>' +
+    '<p><u>The larger the amount seems to you, the farther to the right you should click. The smaller it seems, the farther to the left you should click.</u> <strong>The gain and loss amounts range from $3 to $9, <span class="doc-red">inclusive</span>.</strong> You do not need to place the smallest amount at the far-left endpoint or the largest amount at the far-right endpoint.</p>' +
+    '<p>For example, in the display below, “<strong>+7</strong>” represents a gain of $7, and “<strong>−4</strong>” represents a loss of $4. In this example, the prompt asks you to rate the loss amount, so the amount you are rating is $4. Please <strong class="doc-red">click on the scale</strong> to submit your rating, and it will then automatically advance to the next trial.</p>' +
+    ratingExampleHtml() + '<p>If everything is clear, click <strong>“Next”</strong> to continue.</p>',
 
     ratingExampleHtml() + '<p>Please note:</p><ol>' +
-    '<li>The two numbers may appear in <strong>different font sizes</strong>, as shown above. Font size is not relevant to your rating.</li>' +
-    '<li>On each trial, you may be asked to rate either the gain amount or the loss amount. Which amount you are asked to rate is <strong>determined at random</strong>.</li>' +
-    '<li><strong>Your response <span class="doc-red">cannot be changed</span> once you make your selection.</strong> The task will automatically advance to the next trial. No slider marker is shown initially; <strong><span class="doc-red">click</span> directly on the scale</strong> to select your response.</li>' +
-    '<li>You will complete <strong>3 practice trials</strong> before the formal task begins.</li></ol>' +
-    '<p>When you are ready, click <strong>“Next”</strong> to continue.</p>',
+    '<li>The two numbers may appear in <strong>different font sizes</strong>, as shown above. It is not relevant to your rating.</li>' +
+    '<li>On each trial, you will be asked to rate either the gain amount or the loss amount. Which amount you rate will be <strong>determined at random</strong>. Please read the prompt on each trial.</li>' +
+    '<li><strong>Your response <span class="doc-red">cannot be changed</span> once you <span class="doc-red">click</span> the slider.</strong> The scale has no preselected response. Your response will be recorded immediately, and the task will automatically advance to the next trial.</li>' +
+    '<li>You will complete <strong>3 practice trials</strong> before the main task begins.</li></ol>' +
+    '<p>If everything is clear, click <strong>“Next”</strong> to continue.</p>',
 
     '<p>Before each trial, a small dot will appear on the screen, as shown below.</p>' +
-    '<p>While the dot is displayed, <strong>you do not need to press any keys or take any other action</strong>. After a random delay of approximately <strong>1–2 seconds</strong>, the rating screen will appear automatically.</p>' +
+    '<p><strong>You do not need to press any keys or click the mouse</strong> while the dot is displayed. After a random interval of approximately <strong>1–2 seconds</strong>, the next trial will appear automatically.</p>' +
     '<svg class="instruction-figure fixation-figure" viewBox="0 0 1920 1080" role="img" aria-label="A small white fixation dot in the center of a gray screen." xmlns="http://www.w3.org/2000/svg"><rect width="1920" height="1080" fill="rgb(128,128,128)"/><circle cx="960" cy="540" r="9" fill="white"/></svg>' +
-    '<p>When you are ready, click <strong>“Next”</strong> to continue.</p>'
+    '<p>If everything is clear, click <strong>“Next”</strong> to continue.</p>'
   ];
 
   function instructionPageTrial(pageIndex) {
@@ -514,6 +529,146 @@
     if (previewMode) return null;
     try { return JSON.parse(window.localStorage.getItem(studyLockKey) || 'null'); }
     catch (error) { return null; }
+  }
+
+  function radioQuestion(name, prompt, options, scale, endpoints) {
+    var html = '<fieldset class="questionnaire-field"><legend>' + prompt + '</legend><div class="questionnaire-options' + (scale ? ' questionnaire-scale' : '') + '">';
+    options.forEach(function (option, index) {
+      html += '<label class="questionnaire-option" for="' + name + '-' + index + '"><input type="radio" id="' + name + '-' + index + '" name="' + name + '" value="' + option[0] + '" required><span>' + option[1] + '</span></label>';
+    });
+    html += '</div>';
+    if (endpoints) html += '<div class="scale-endpoints"><span>' + endpoints[0] + '</span><span>' + endpoints[1] + '</span></div>';
+    return html + '</fieldset>';
+  }
+
+  function scaleOptions(count) {
+    return Array.from({ length: count }, function (_, index) { return [String(index + 1), String(index + 1)]; });
+  }
+
+  function questionnaireTrial(part, page, content, fields, scoreResponses) {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: setupShell('<form id="questionnaire-form">' + content + '<button class="jspsych-btn" id="questionnaire-next" type="submit">Next</button></form>'),
+      choices: 'NO_KEYS',
+      data: { task_trial_index: 0, trial_part: part, questionnaire_page: page },
+      on_load: function () {
+        if (part === 'comprehension_check') comprehensionAttempt++;
+        var pageStart = performance.now();
+        var finished = false;
+        var form = document.getElementById('questionnaire-form');
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          if (finished || !form.reportValidity()) return;
+          finished = true;
+          document.getElementById('questionnaire-next').disabled = true;
+          var answers = new FormData(form);
+          var result = { questionnaire_rt: Math.round(performance.now() - pageStart), elapsed_time: getElapsedTime() };
+          fields.forEach(function (field) {
+            var value = answers.get(field.name);
+            result[field.name] = field.numeric ? Number(value) : (value === null ? '' : value);
+          });
+          if (scoreResponses) scoreResponses(result);
+          jsPsych.finishTrial(result);
+        });
+      }
+    };
+  }
+
+  function comprehensionCheckTrial() {
+    var content = '<h2>Comprehension Check</h2><p>Please answer the following questions to check your understanding of the task.</p>' +
+      radioQuestion('comprehension_q1', '1. What should you rate on each trial, based on your first impression?', [
+        ['A', 'A. The font size used to display the gain amount.'],
+        ['B', 'B. The font size used to display either the gain amount or the loss amount.'],
+        ['C', 'C. How large either the gain amount or the loss amount seems to you, as specified in the prompt.'],
+        ['D', 'D. How large both the gain amount and the loss amount seem to you, at the same time.']
+      ]) +
+      radioQuestion('comprehension_q2', '2. Which statement about the numbers shown on each trial is correct?', [
+        ['A', 'A. A number shown on the screen could be 10.'],
+        ['B', 'B. The smallest possible number is -1.'],
+        ['C', 'C. The numbers range from 3 to 9.'],
+        ['D', 'D. The absolute values of the numbers range from 3 to 9.']
+      ]) +
+      radioQuestion('comprehension_q3', '3. Which statement about the rating scale is correct?', [
+        ['A', 'A. The left endpoint is 3, and the right endpoint is 9.'],
+        ['B', 'B. The left endpoint is “Very small,” and the right endpoint is “Very large.”'],
+        ['C', 'C. The left endpoint is 1, and the right endpoint is 10.']
+      ]) +
+      radioQuestion('comprehension_q4', '4. Which of the following statements about the task is correct?', [
+        ['A', 'A. You need to take the font sizes of the numbers into account.'],
+        ['B', 'B. Because positive numbers are greater than negative numbers, a gain amount must receive a higher rating than a loss amount.'],
+        ['C', 'C. Once you click on the scale, you cannot change your response.'],
+        ['D', 'D. You need to click when the small dot appears on the screen.']
+      ]);
+    var fields = [1, 2, 3, 4].map(function (number) { return { name: 'comprehension_q' + number }; });
+    return questionnaireTrial('comprehension_check', 1, content, fields, function (result) {
+      var correct = ['C', 'D', 'B', 'C'];
+      comprehensionWrongQuestions = [];
+      correct.forEach(function (answer, index) {
+        if (result['comprehension_q' + (index + 1)] !== answer) comprehensionWrongQuestions.push(index + 1);
+      });
+      comprehensionPassed = comprehensionWrongQuestions.length === 0;
+      result.comprehension_attempt = comprehensionAttempt;
+      result.comprehension_passed = comprehensionPassed ? 1 : 0;
+      result.comprehension_incorrect_json = JSON.stringify(comprehensionWrongQuestions);
+    });
+  }
+
+  function comprehensionFeedbackTrial() {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function () {
+        return setupShell('<h2>Comprehension Check</h2><p>Incorrect answers: question(s) ' + comprehensionWrongQuestions.join(', ') + '.</p>' +
+          (comprehensionAttempt < 2 ? '<p>You will automatically return to the first instruction page. Please read the instructions again before your second attempt.</p>' : '<p>You did not pass the comprehension check on your second attempt and cannot continue this study.</p>'));
+      },
+      choices: 'NO_KEYS',
+      data: { task_trial_index: 0, trial_part: 'comprehension_feedback' },
+      on_load: function () {
+        jsPsych.pluginAPI.setTimeout(function () {
+          if (comprehensionAttempt < 2) {
+            jsPsych.finishTrial({ elapsed_time: getElapsedTime() });
+          } else {
+            experimentAborted = true;
+            fullscreenAbortArmed = false;
+            terminationReason = 'excluded_comprehension';
+            setStoredStudyStatus('excluded_comprehension');
+            jsPsych.data.addProperties({ session_status: 'excluded_comprehension' });
+            jsPsych.endExperiment('');
+          }
+        }, 4000);
+      },
+      on_finish: addElapsedTime
+    };
+  }
+
+  function postTaskTrials() {
+    return [
+      questionnaireTrial('post_task', 1,
+        '<p>Finally, please answer a few brief questions. This will take approximately <strong>1 minute</strong>.</p>' +
+        radioQuestion('post_device', 'Which device did you use during the task?', [['mouse', 'Mouse'], ['touchpad', 'Touchpad']]) +
+        radioQuestion('post_attention_strategy', 'When making your ratings during the task, which of the following best describes what you did?', [
+          ['target_only_remember_target', 'I mostly looked only at the number I was asked to rate and could only remember that number.'],
+          ['both_remember_target', 'I looked at both numbers but could only remember the number I was asked to rate.'],
+          ['both_remember_both', 'I looked at both numbers and could remember both.']
+        ]) +
+        radioQuestion('post_font_magnitude_impression', 'In the rating task, to what extent did amounts presented in a larger font give you the impression that their numerical magnitudes were also larger?', scaleOptions(7), true, ['1 = not at all', '7 = very strongly']),
+        [{ name: 'post_device' }, { name: 'post_attention_strategy' }, { name: 'post_font_magnitude_impression', numeric: true }]),
+      questionnaireTrial('post_task', 2,
+        radioQuestion('post_investment_frequency', 'Over the past year, how often have you made investments or traded financial assets?', [
+          ['never', 'Never'], ['few_times_year', 'A few times a year'], ['few_times_month', 'A few times a month'], ['few_times_week', 'A few times a week'], ['almost_every_day', 'Almost every day']
+        ]) +
+        radioQuestion('post_numerical_ability', 'How would you rate your ability to work with numbers, probabilities, or monetary amounts?', scaleOptions(7), true, ['1 = Very poor', '7 = Very good']),
+        [{ name: 'post_investment_frequency' }, { name: 'post_numerical_ability', numeric: true }]),
+      questionnaireTrial('post_task', 3,
+        '<p>Imagine that the ladder below represents where people stand in society.</p>' +
+        '<p>The top rung (10) represents people who have the most wealth, the best education, the best jobs, and the most respect from others.</p>' +
+        '<p>The bottom rung (1) represents people who have the least wealth, little or no education, the worst jobs or no jobs, and the least respect from others.</p>' +
+        '<img class="ladder-figure" src="ladder.png" alt="A ladder with ten rungs, numbered from 1 at the bottom to 10 at the top.">' +
+        radioQuestion('post_family_social_position', 'Taking everything into account, which rung of the ladder best represents your family’s position in society?', scaleOptions(10), true),
+        [{ name: 'post_family_social_position', numeric: true }]),
+      questionnaireTrial('post_task', 4,
+        '<fieldset class="questionnaire-field"><legend><label for="post-comments">Finally, if you have any questions or suggestions about this study, please share them below. (Optional)</label></legend><textarea class="questionnaire-comments" id="post-comments" name="post_comments" rows="6"></textarea></fieldset>',
+        [{ name: 'post_comments' }])
+    ];
   }
 
   function setStoredStudyStatus(status) {
@@ -749,8 +904,8 @@
       question = '<span class="axis-emphasis">Attention check:</span> Please click "Very large" at the far right end of the scale.';
     } else {
       question = row.target_valence === 'gain' ?
-        'How large does the <span class="axis-emphasis">gain amount</span> above feel to you? Use your first impression.' :
-        'How large does the <span class="axis-emphasis">loss amount</span> above feel to you? Use your first impression.';
+        'Based on your first impression, please rate how large the <span class="axis-emphasis">gain amount</span> shown above seems to you.' :
+        'Based on your first impression, please rate how large the <span class="axis-emphasis">loss amount</span> shown above seems to you.';
     }
 
     return '' +
@@ -966,7 +1121,23 @@
       'target_slider_rts_json',
       'target_rt',
       'break_index',
-      'completed_trials'
+      'completed_trials',
+      'questionnaire_page',
+      'questionnaire_rt',
+      'comprehension_attempt',
+      'comprehension_q1',
+      'comprehension_q2',
+      'comprehension_q3',
+      'comprehension_q4',
+      'comprehension_passed',
+      'comprehension_incorrect_json',
+      'post_device',
+      'post_attention_strategy',
+      'post_font_magnitude_impression',
+      'post_investment_frequency',
+      'post_numerical_ability',
+      'post_family_social_position',
+      'post_comments'
     ];
 
     var rows = jsPsych.data.get().values().map(function (row) {
@@ -1025,7 +1196,23 @@
         target_slider_rts_json: row.target_slider_rts_json,
         target_rt: row.target_rt,
         break_index: row.break_index,
-        completed_trials: row.completed_trials
+        completed_trials: row.completed_trials,
+        questionnaire_page: row.questionnaire_page,
+        questionnaire_rt: row.questionnaire_rt,
+        comprehension_attempt: row.comprehension_attempt,
+        comprehension_q1: row.comprehension_q1,
+        comprehension_q2: row.comprehension_q2,
+        comprehension_q3: row.comprehension_q3,
+        comprehension_q4: row.comprehension_q4,
+        comprehension_passed: row.comprehension_passed,
+        comprehension_incorrect_json: row.comprehension_incorrect_json,
+        post_device: row.post_device,
+        post_attention_strategy: row.post_attention_strategy,
+        post_font_magnitude_impression: row.post_font_magnitude_impression,
+        post_investment_frequency: row.post_investment_frequency,
+        post_numerical_ability: row.post_numerical_ability,
+        post_family_social_position: row.post_family_social_position,
+        post_comments: row.post_comments
       };
     });
 
@@ -1101,9 +1288,19 @@
 
   timeline.push(humanVerificationTrial());
   timeline.push(enter_fullscreen_trial);
+  var instructionAndCheckTimeline = [];
   for (var instructionPage = 0; instructionPage < instructionPages.length; instructionPage++) {
-    timeline.push(instructionPageTrial(instructionPage));
+    instructionAndCheckTimeline.push(instructionPageTrial(instructionPage));
   }
+  instructionAndCheckTimeline.push(comprehensionCheckTrial());
+  instructionAndCheckTimeline.push({
+    timeline: [comprehensionFeedbackTrial()],
+    conditional_function: function () { return !comprehensionPassed; }
+  });
+  timeline.push({
+    timeline: instructionAndCheckTimeline,
+    loop_function: function () { return !comprehensionPassed && comprehensionAttempt < 2; }
+  });
 
   var practiceTimeline = [];
   for (var p = 0; p < practiceTrials.length; p++) {
@@ -1162,6 +1359,8 @@
     }
   }
 
+  postTaskTrials().forEach(function (trial) { timeline.push(trial); });
+
   var end_trial = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: '<div class="submission-screen">Saving your responses. Please keep this page open.</div>',
@@ -1217,11 +1416,12 @@
       filename: (previewMode ? 'preview_' : 'connect_') + sessionId + (experimentAborted ? '_partial' : '') + '.csv',
       csv: getCleanCsv(),
       completed: experimentCompleted && !experimentAborted,
+      terminationReason: terminationReason,
       accepted: false
     };
     persistSubmission();
     if (previewMode) {
-      showMessage('Preview finished. No data were uploaded, and no Connect completion was submitted.');
+      showMessage((terminationReason === 'excluded_comprehension' ? 'You did not pass the comprehension check on your second attempt. This preview has ended. ' : 'Preview finished. ') + 'No data were uploaded, and no Connect completion was submitted.');
       addButton('Download preview data', downloadBackup);
       addButton('Exit fullscreen', exitFullscreenNormally);
       return;
@@ -1231,7 +1431,12 @@
 
   function showAcceptedSubmission() {
     if (!submission.completed) {
-      showMessage('The task ended because you left full-screen mode. Your responses so far have been saved. Please contact the researcher through Connect for instructions; this is not a completed submission.');
+      if (submission.terminationReason === 'excluded_comprehension') {
+        showMessage('You did not pass the comprehension check on your second attempt and cannot continue this study. Your responses so far have been saved. Please return the study on Connect. Do not submit a completion code.');
+        addButton('Exit fullscreen', exitFullscreenNormally);
+      } else {
+        showMessage('The task ended because you left full-screen mode. Your responses so far have been saved. Please contact the researcher through Connect for instructions; this is not a completed submission.');
+      }
       return;
     }
     setStoredStudyStatus('completed');
@@ -1250,7 +1455,7 @@
   async function uploadSubmission() {
     if (previewMode || uploadInProgress || uploadAccepted || !submission) return;
     uploadInProgress = true;
-    showMessage(submission.completed ? 'Saving your responses. Please keep this page open.' : 'The task has ended because you left full-screen mode. Saving your responses so far. Please keep this page open.');
+    showMessage(submission.completed ? 'Saving your responses. Please keep this page open.' : (submission.terminationReason === 'excluded_comprehension' ? 'The study has ended because you did not pass the comprehension check on your second attempt. Saving your responses so far. Please keep this page open.' : 'The task has ended because you left full-screen mode. Saving your responses so far. Please keep this page open.'));
     var controller = new AbortController();
     var timeoutId = setTimeout(function () { controller.abort(); }, 65000);
     try {
@@ -1333,7 +1538,7 @@
       } catch (error) { console.warn('Could not restore a session backup.', error); }
     }
     var storedStatus = getStoredStudyStatus();
-    if (storedStatus && ['failed_verification', 'fullscreen_exit', 'completed'].indexOf(storedStatus.status) !== -1) {
+    if (storedStatus && ['failed_verification', 'fullscreen_exit', 'excluded_comprehension', 'completed'].indexOf(storedStatus.status) !== -1) {
       if (storedStatus.status === 'completed') {
         submission = { completed: true };
         uploadAccepted = true;
