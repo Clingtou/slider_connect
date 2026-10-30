@@ -34,6 +34,14 @@
       overflow: hidden !important;
     }
 
+    html.fullscreen-entry-transition,
+    html.fullscreen-entry-transition body,
+    html.fullscreen-entry-transition .jspsych-display-element,
+    html.fullscreen-entry-transition .jspsych-content-wrapper,
+    html.fullscreen-entry-transition #jspsych-content {
+      background: #fff !important;
+    }
+
     .fullscreen-start-screen {
       box-sizing: border-box;
       width: min(900px, calc(100vw - 80px));
@@ -338,8 +346,8 @@
     .setup-page li { margin: 16px 0; }
     .setup-page .doc-red { color: #c00000; font-weight: 700; }
     .setup-page .gray-highlight { background: rgb(128, 128, 128); color: white; font-size: 22px; padding: 1px 5px; }
-    .setup-page .instruction-figure { display: block; width: min(770px, 100%); height: auto; margin: 26px auto; }
-    .setup-page .instruction-figure-small { width: min(600px, 100%); }
+    .setup-page .instruction-figure { display: block; width: min(654.5px, 85%); height: auto; margin: 26px auto; }
+    .setup-page .instruction-figure-small { width: min(510px, 85%); }
     .setup-page .fixation-figure { width: min(400px, 100%); }
     .setup-page .jspsych-btn, #jspsych-content:has(.fullscreen-message) .jspsych-btn {
       background: #2f80ed; color: #fff; border: 1px solid #1f5fbf;
@@ -371,14 +379,20 @@
       background: #fff !important; overflow-y: auto !important; text-align: left;
     }
     #jspsych-content:has(.fullscreen-message) .jspsych-btn { margin-left: max(36px, calc((100vw - 980px) / 2)) !important; }
-    .setup-page .questionnaire-field { border: 0; padding: 0; margin: 30px 0; min-width: 0; }
-    .setup-page .questionnaire-field legend { font-size: 20px; line-height: 1.5; font-weight: 700; margin-bottom: 14px; }
+    .setup-page .questionnaire-field { border: 0; padding: 0; margin: 40px 0; min-width: 0; }
+    .setup-page .questionnaire-field legend { font-size: 20px; line-height: 1.5; font-weight: 400; margin-bottom: 14px; }
     .setup-page .questionnaire-options { display: grid; gap: 10px; }
     .setup-page .questionnaire-option { display: flex; align-items: baseline; gap: 12px; font-size: 19px; line-height: 1.5; cursor: pointer; }
     .setup-page .questionnaire-option input { flex-shrink: 0; width: 18px; height: 18px; margin: 0; accent-color: #2f80ed; }
-    .setup-page .questionnaire-scale { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
-    .setup-page .questionnaire-scale .questionnaire-option { flex-direction: column; align-items: center; min-width: 35px; gap: 9px; }
-    .setup-page .scale-endpoints { display: flex; justify-content: space-between; gap: 24px; margin-top: 14px; font-size: 17px; }
+    .setup-page .questionnaire-scale-block { width: min(600px, 100%); }
+    .setup-page .questionnaire-scale { display: grid; grid-template-columns: repeat(var(--scale-count), minmax(0, 1fr)); gap: 10px; }
+    .setup-page .questionnaire-scale .questionnaire-option { position: relative; display: block; min-width: 0; }
+    .setup-page .questionnaire-scale .questionnaire-option input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .setup-page .questionnaire-scale .questionnaire-option span { display: block; padding: 5px 0; border: 1px solid #888; border-radius: 8px; text-align: center; color: #555; background: #fff; font-size: 20px; }
+    .setup-page .questionnaire-scale .questionnaire-option:hover span { background: #f3f6fa; }
+    .setup-page .questionnaire-scale .questionnaire-option input:checked + span { border-color: #2f80ed; background: #eaf2ff; color: #1f5fbf; }
+    .setup-page .questionnaire-scale .questionnaire-option input:focus-visible + span { outline: 2px solid #2f80ed; outline-offset: 3px; }
+    .setup-page .scale-endpoints { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 10px; font-size: 17px; line-height: 1.4; }
     .setup-page .scale-endpoints span:last-child { text-align: right; }
     .setup-page .ladder-figure { display: block; width: min(320px, 100%); height: auto; margin: 24px auto; }
     .setup-page .questionnaire-comments { display: block; box-sizing: border-box; width: 100%; min-height: 180px; padding: 14px; font: 19px/1.5 Arial, sans-serif; border: 1px solid #9ca3af; border-radius: 4px; resize: vertical; }
@@ -389,11 +403,11 @@
 
 <script>
   // STUDY SETTINGS: paste the completion URL OR code from your Connect project.
-  // Blank completion settings automatically enable preview; ?preview=1 also forces it.
-  // Preview never uploads or returns a completion code.
+  // Completion settings may be left blank; data saving does not depend on them.
+  // Only ?preview=1 enables preview, which never uploads or returns a completion code.
   var DATAPIPE_EXPERIMENT_ID = 'SxwHNCUzbN5m';
-  var CONNECT_COMPLETION_URL = '';
-  var CONNECT_COMPLETION_CODE = '';
+  var CONNECT_COMPLETION_URL = 'https://connect.cloudresearch.com/participant/project/02C29A2CB0/complete';
+  var CONNECT_COMPLETION_CODE = '02C29A2CB0';
   var STUDY_VERSION = 'connect-en-2026-10-28';
 
   if (typeof initJsPsych !== 'function' || typeof jsPsychHtmlKeyboardResponse === 'undefined' || typeof jsPsychFullscreen === 'undefined') {
@@ -402,10 +416,17 @@
   }
 
   var urlParameters = new URLSearchParams(window.location.search);
-  var previewMode = urlParameters.get('preview') === '1' || (!CONNECT_COMPLETION_URL && !CONNECT_COMPLETION_CODE);
+  var previewMode = urlParameters.get('preview') === '1';
   var connectParticipantId = urlParameters.get('participantId') || urlParameters.get('CONNECT_PID') || '';
   var connectProjectId = urlParameters.get('projectId') || urlParameters.get('PROJECT_ID') || '';
   var connectAssignmentId = urlParameters.get('assignmentId') || urlParameters.get('ASSIGNMENT_ID') || '';
+  var anonymousGithubMode = !connectParticipantId && window.location.origin === 'https://clingtou.github.io' &&
+    ['/slider_connect/', '/slider_connect/index.html'].indexOf(window.location.pathname) !== -1;
+  var participantStateEnabled = !previewMode && !!connectParticipantId;
+  if (!connectParticipantId) {
+    connectProjectId = '';
+    connectAssignmentId = '';
+  }
   var sessionId = (window.crypto && typeof window.crypto.randomUUID === 'function') ? window.crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2);
   var sessionStartedAt = new Date().toISOString();
   var submission = null;
@@ -420,6 +441,8 @@
   var comprehensionPassed = false;
   var comprehensionWrongQuestions = [];
   var terminationReason = '';
+  var fullscreenRestartBlocked = false;
+  var fullscreenExitRestartMessage = 'You cannot take this study again because you previously exited full-screen mode after practice began.';
 
   var jsPsych = initJsPsych({
     use_webaudio: false,
@@ -436,6 +459,7 @@
   var fontRgb = 'rgb(0, 0, 0)';
   var stimRgb = 'rgb(255, 255, 255)';
   var experimentStarted = false;
+  var practiceStarted = false;
   var experimentCompleted = false;
   var experimentAborted = false;
   var experimentStartPerfTime = performance.now();
@@ -452,7 +476,7 @@
     return String(window.screen.width) + 'x' + String(window.screen.height);
   }
 
-  var participantId = connectParticipantId || 'preview-' + sessionId;
+  var participantId = connectParticipantId;
 
   jsPsych.data.addProperties({
     Subject: participantId,
@@ -494,10 +518,10 @@
       '<g fill="white" font-family="Microsoft YaHei, Arial, sans-serif" text-anchor="middle">' +
       '<text x="605" y="580" font-size="496.8">+7</text>' +
       '<text x="1315" y="580" font-size="199.8">-4</text>' +
-      '<text x="960" y="764" font-size="40">Based on your first impression, please rate how large the <tspan font-weight="bold">loss amount</tspan> above seems to you.</text>' +
-      '<text x="420" y="875" text-anchor="start" font-size="40">Very small</text>' +
-      '<text x="1500" y="875" text-anchor="end" font-size="40">Very large</text></g>' +
-      '<line x1="420" y1="830" x2="1500" y2="830" stroke="white" stroke-opacity=".85" stroke-width="6" stroke-linecap="round"/></svg>';
+      '<text x="960" y="764" font-size="36">Based on your first impression, please rate how large the <tspan font-weight="bold">loss amount</tspan> above seems to you.</text>' +
+      '<text x="360" y="905" text-anchor="start" font-size="40">Very small</text>' +
+      '<text x="1560" y="905" text-anchor="end" font-size="40">Very large</text></g>' +
+      '<line x1="420" y1="860" x2="1500" y2="860" stroke="white" stroke-opacity=".85" stroke-width="6" stroke-linecap="round"/></svg>';
   }
 
   var instructionPages = [
@@ -528,6 +552,7 @@
       choices: 'NO_KEYS',
       data: { task_trial_index: 0, trial_part: 'instruction', instruction_page: pageIndex + 1 },
       on_load: function () {
+        document.documentElement.classList.remove('fullscreen-entry-transition');
         var button = document.getElementById('instruction-next');
         button.addEventListener('click', function () {
           button.disabled = true;
@@ -538,7 +563,7 @@
   }
 
   function getStoredStudyStatus() {
-    if (previewMode) return null;
+    if (!participantStateEnabled) return null;
     try { return JSON.parse(window.localStorage.getItem(studyLockKey) || 'null'); }
     catch (error) { return null; }
   }
@@ -550,7 +575,7 @@
         '<p>Congratulations! You answered all questions correctly.</p>' +
         '<p>The task takes about <strong>10–13 minutes</strong> and includes about <strong>200 trials</strong> with one break. The background will turn <strong class="gray-highlight">GRAY</strong>, and you will begin with three practice trials.</p>' +
         '<p>As a reminder, please rate how large the specified amount seems to you. For losses, rate the amount lost. For example, “−7” means a loss of $7. The scale runs from “Very small” on the left to “Very large” on the right.</p>' +
-        '<p>Please stay in full-screen mode. If you exit, your session will end and cannot be restarted.</p>' +
+        '<p>Please stay in full-screen mode. If you exit, your session will end' + (participantStateEnabled ? ' and cannot be restarted.' : '.') + '</p>' +
         '<p>Click “Next” when you are ready to begin.</p>' +
         '<button id="practice-overview-next" class="jspsych-btn" type="button">Next</button>'
       ),
@@ -567,12 +592,15 @@
   }
 
   function radioQuestion(name, prompt, options, scale, endpoints) {
-    var html = '<fieldset class="questionnaire-field"><legend>' + prompt + '</legend><div class="questionnaire-options' + (scale ? ' questionnaire-scale' : '') + '">';
+    var html = '<fieldset class="questionnaire-field"><legend>' + prompt + '</legend>';
+    if (scale) html += '<div class="questionnaire-scale-block">';
+    if (endpoints) html += '<div class="scale-endpoints"><span>' + endpoints[0] + '</span><span>' + endpoints[1] + '</span></div>';
+    html += '<div class="questionnaire-options' + (scale ? ' questionnaire-scale" style="--scale-count: ' + options.length : '') + '">';
     options.forEach(function (option, index) {
       html += '<label class="questionnaire-option" for="' + name + '-' + index + '"><input type="radio" id="' + name + '-' + index + '" name="' + name + '" value="' + option[0] + '" required><span>' + option[1] + '</span></label>';
     });
     html += '</div>';
-    if (endpoints) html += '<div class="scale-endpoints"><span>' + endpoints[0] + '</span><span>' + endpoints[1] + '</span></div>';
+    if (scale) html += '</div>';
     return html + '</fieldset>';
   }
 
@@ -698,7 +726,7 @@
         '<p>The top rung (10) represents people who have the most wealth, the best education, the best jobs, and the most respect from others.</p>' +
         '<p>The bottom rung (1) represents people who have the least wealth, little or no education, the worst jobs or no jobs, and the least respect from others.</p>' +
         '<img class="ladder-figure" src="ladder.png" alt="A ladder with ten rungs, numbered from 1 at the bottom to 10 at the top.">' +
-        radioQuestion('post_family_social_position', 'Taking everything into account, which rung of the ladder best represents your family’s position in society?', scaleOptions(10), true),
+        radioQuestion('post_family_social_position', 'Taking everything into account, which rung of the ladder best represents your family’s position in society?', scaleOptions(10), true, ['1 = Bottom rung', '10 = Top rung']),
         [{ name: 'post_family_social_position', numeric: true }]),
       questionnaireTrial('post_task', 4,
         '<fieldset class="questionnaire-field"><legend><label for="post-comments">Finally, if you have any questions or suggestions about this study, please share them below. (Optional)</label></legend><textarea class="questionnaire-comments" id="post-comments" name="post_comments" rows="6"></textarea></fieldset>',
@@ -707,7 +735,7 @@
   }
 
   function setStoredStudyStatus(status) {
-    if (previewMode) return;
+    if (!participantStateEnabled) return;
     try { window.localStorage.setItem(studyLockKey, JSON.stringify({ status: status, timestamp: Date.now() })); }
     catch (error) { /* Continue if browser storage is unavailable, as in the reference study. */ }
   }
@@ -997,12 +1025,13 @@
         var rts = [];
         var moved = false;
         var finished = false;
+        var pointerResponseRt = null;
 
         function finishBy(reason) {
           if (finished) return;
           finished = true;
 
-          var targetValue = moved ? parseFloat(slider.value) : null;
+          var targetValue = moved ? positions[0] : null;
           var positionJson = JSON.stringify(positions);
           var rtJson = JSON.stringify(rts);
 
@@ -1023,8 +1052,11 @@
         }
 
         function recordFirstSliderAction() {
-          if (moved || finished) return;
-          var nowRt = Math.round(performance.now() - startTime);
+          if (moved || finished) {
+            if (moved) slider.value = String(positions[0]);
+            return;
+          }
+          var nowRt = pointerResponseRt === null ? Math.round(performance.now() - startTime) : pointerResponseRt;
           slider.classList.remove('unmoved');
           moved = true;
           positions.push(parseFloat(slider.value));
@@ -1037,6 +1069,12 @@
         }
 
         slider.addEventListener('input', recordFirstSliderAction);
+        slider.addEventListener('pointerdown', function (event) {
+          if (moved || finished || event.isPrimary === false || event.button !== 0) return;
+          pointerResponseRt = Math.round(performance.now() - startTime);
+          // Let the native range update first; unchanged midpoint clicks need this fallback.
+          setTimeout(recordFirstSliderAction, 0);
+        });
       }
     };
   }
@@ -1262,9 +1300,12 @@
     if (experimentAborted || experimentCompleted) return;
     experimentAborted = true;
     fullscreenAbortArmed = false;
-    setStoredStudyStatus('fullscreen_exit');
+    terminationReason = 'fullscreen_exit';
+    fullscreenRestartBlocked = participantStateEnabled && practiceStarted;
+    if (fullscreenRestartBlocked) setStoredStudyStatus('fullscreen_exit');
     jsPsych.data.addProperties({ fullscreen_exit_abort: 1, session_status: 'aborted_fullscreen' });
-    jsPsych.endExperiment('<div class="abort-screen">You exited full-screen mode. The task has been stopped.\nPlease do not attempt the task again.</div>');
+    jsPsych.endExperiment('<div class="abort-screen">You exited full-screen mode. The task has been stopped.\n' +
+      (fullscreenRestartBlocked ? fullscreenExitRestartMessage : 'You may reopen the study to start again.') + '</div>');
   }
 
   function currentFullscreenElement() {
@@ -1301,6 +1342,7 @@
     button_label: 'Enter fullscreen and start',
     data: { task_trial_index: 0, trial_part: 'full_screen' },
     on_load: function () {
+      document.documentElement.classList.add('fullscreen-entry-transition');
       var consent = document.getElementById('ethics-consent');
       var button = document.getElementById('jspsych-fullscreen-btn');
       button.disabled = true;
@@ -1338,7 +1380,9 @@
   });
 
   timeline.push(practiceOverviewTrial());
-  timeline.push(instructionScreen(practiceStartText));
+  var practiceStartTrial = instructionScreen(practiceStartText);
+  practiceStartTrial.on_load = function () { practiceStarted = true; };
+  timeline.push(practiceStartTrial);
 
   var practiceTimeline = [];
   for (var p = 0; p < practiceTrials.length; p++) {
@@ -1429,7 +1473,9 @@
   }
 
   function persistSubmission() {
-    if (previewMode || !submission) return;
+    if (!participantStateEnabled || !submission) return;
+    // An exit before the gray practice page must not prevent a fresh attempt.
+    if (submission.terminationReason === 'fullscreen_exit' && !submission.practiceStarted) return;
     try { sessionStorage.setItem(backupKey, JSON.stringify(submission)); }
     catch (error) { console.warn('Could not keep a session backup.', error); }
   }
@@ -1451,10 +1497,11 @@
     submission = {
       experimentId: DATAPIPE_EXPERIMENT_ID,
       participantId: participantId,
-      filename: (previewMode ? 'preview_' : 'connect_') + sessionId + (experimentAborted ? '_partial' : '') + '.csv',
+      filename: (previewMode ? 'preview_' : (anonymousGithubMode ? 'github_' : 'connect_')) + sessionId + (experimentAborted ? '_partial' : '') + '.csv',
       csv: getCleanCsv(),
       completed: experimentCompleted && !experimentAborted,
       terminationReason: terminationReason,
+      practiceStarted: practiceStarted,
       accepted: false
     };
     persistSubmission();
@@ -1473,11 +1520,17 @@
         showMessage('You did not pass the comprehension check on your second attempt and cannot continue this study. Your responses so far have been saved. Please return the study on Connect. Do not submit a completion code.');
         addButton('Exit fullscreen', exitFullscreenNormally);
       } else {
-        showMessage('The task ended because you left full-screen mode. Your responses so far have been saved. Please contact the researcher through Connect for instructions; this is not a completed submission.');
+        showMessage('The task ended because you left full-screen mode. Your responses so far have been saved. ' +
+          (fullscreenRestartBlocked ? fullscreenExitRestartMessage + ' Please return the study on Connect. Do not submit a completion code.' : 'You may reopen the study to start again; this is not a completed submission.'));
       }
       return;
     }
     setStoredStudyStatus('completed');
+    if (anonymousGithubMode) {
+      showMessage('Thank you! Your responses have been saved. You may close this page.');
+      addButton('Finish', exitFullscreenNormally);
+      return;
+    }
     if (CONNECT_COMPLETION_URL) {
       showMessage('Thank you! Your responses have been saved. Click below to return to Connect and complete your submission.');
       addButton('Return to Connect', function () { exitFullscreenNormally(); window.location.assign(CONNECT_COMPLETION_URL); });
@@ -1493,7 +1546,7 @@
   async function uploadSubmission() {
     if (previewMode || uploadInProgress || uploadAccepted || !submission) return;
     uploadInProgress = true;
-    showMessage(submission.completed ? 'Saving your responses. Please keep this page open.' : (submission.terminationReason === 'excluded_comprehension' ? 'The study has ended because you did not pass the comprehension check on your second attempt. Saving your responses so far. Please keep this page open.' : 'The task has ended because you left full-screen mode. Saving your responses so far. Please keep this page open.'));
+    showMessage((fullscreenRestartBlocked ? fullscreenExitRestartMessage + ' ' : '') + (submission.completed ? 'Saving your responses. Please keep this page open.' : (submission.terminationReason === 'excluded_comprehension' ? 'The study has ended because you did not pass the comprehension check on your second attempt. Saving your responses so far. Please keep this page open.' : 'The task has ended because you left full-screen mode. Saving your responses so far. Please keep this page open.')));
     var controller = new AbortController();
     var timeoutId = setTimeout(function () { controller.abort(); }, 65000);
     try {
@@ -1522,9 +1575,9 @@
       showAcceptedSubmission();
     } catch (error) {
       if (error.code === 'FILE_EXISTS' || error.code === 'OSF_FILE_EXISTS') {
-        showMessage('A file for this session already exists, but we could not confirm its contents. Please download a backup and contact the researcher through Connect. Do not repeat the task.');
+        showMessage((fullscreenRestartBlocked ? fullscreenExitRestartMessage + ' ' : '') + 'A file for this session already exists, but we could not confirm its contents. Please download a backup and contact the researcher through Connect. Do not repeat the task.');
       } else {
-        showMessage('We could not confirm that your responses were saved. Please keep this page open, check your connection, and try saving again. You can also download a backup and contact the researcher through Connect. Do not repeat the task.');
+        showMessage((fullscreenRestartBlocked ? fullscreenExitRestartMessage + ' ' : '') + 'We could not confirm that your responses were saved. Please keep this page open, check your connection, and try saving again. You can also download a backup and contact the researcher through Connect. Do not repeat the task.');
         addButton('Try saving again', uploadSubmission);
       }
       addButton('Download backup', downloadBackup);
@@ -1536,23 +1589,54 @@
   }
 
   window.addEventListener('beforeunload', function (event) {
-    if (!previewMode && !uploadAccepted && (experimentStarted || submission)) {
+    var restartableEarlyExit = submission && submission.terminationReason === 'fullscreen_exit' && !submission.practiceStarted;
+    if (participantStateEnabled && !restartableEarlyExit && !uploadAccepted && (experimentStarted || submission)) {
       event.preventDefault();
       event.returnValue = '';
     }
   });
 
+  function getSavedSubmission() {
+    if (!participantStateEnabled) return null;
+    try {
+      var saved = JSON.parse(sessionStorage.getItem(backupKey) || 'null');
+      if (saved && saved.experimentId === DATAPIPE_EXPERIMENT_ID && saved.participantId === participantId && typeof saved.csv === 'string' && typeof saved.filename === 'string') {
+        if (saved.terminationReason === 'fullscreen_exit' && saved.practiceStarted === false) return null;
+        return saved;
+      }
+    } catch (error) { console.warn('Could not restore a session backup.', error); }
+    return null;
+  }
+
   function startStudy() {
+    if (!previewMode && !connectParticipantId && !anonymousGithubMode) {
+      showMessage('Your Connect participant ID is missing. Please open the study using the link in your Connect project.');
+      return;
+    }
+    var storedStatus = getStoredStudyStatus();
+    var saved = getSavedSubmission();
+    // A previous fullscreen exit takes priority over the generic backup screen.
+    // Only saving the existing partial response is allowed; never restart its timeline.
+    if (storedStatus && storedStatus.status === 'fullscreen_exit') {
+      fullscreenRestartBlocked = true;
+      if (saved && !saved.completed) {
+        submission = saved;
+        submission.terminationReason = 'fullscreen_exit';
+        submission.practiceStarted = true;
+        uploadAccepted = saved.accepted === true;
+        if (uploadAccepted) showAcceptedSubmission();
+        else {
+          showMessage(fullscreenExitRestartMessage + ' Your previous responses are ready to save. You may retry saving them below.');
+          addButton('Save my responses', uploadSubmission);
+          addButton('Download backup', downloadBackup);
+        }
+      } else {
+        showEntryEnd(fullscreenExitRestartMessage);
+      }
+      return;
+    }
     if (!previewMode) {
-      if (!connectParticipantId) {
-        showMessage('Your Connect participant ID is missing. Please open the study using the link in your Connect project.');
-        return;
-      }
-      if (!CONNECT_COMPLETION_URL && !CONNECT_COMPLETION_CODE) {
-        showMessage('This study is not ready to accept participants yet. Please contact the researcher through Connect.');
-        return;
-      }
-      if (CONNECT_COMPLETION_URL) {
+      if (!anonymousGithubMode && CONNECT_COMPLETION_URL) {
         try {
           if (new URL(CONNECT_COMPLETION_URL).protocol !== 'https:') throw new Error('Use HTTPS.');
         } catch (error) {
@@ -1560,23 +1644,20 @@
           return;
         }
       }
-      try {
-        var saved = JSON.parse(sessionStorage.getItem(backupKey) || 'null');
-        if (saved && saved.experimentId === DATAPIPE_EXPERIMENT_ID && saved.participantId === participantId && typeof saved.csv === 'string' && typeof saved.filename === 'string') {
-          submission = saved;
-          uploadAccepted = saved.accepted === true;
-          if (uploadAccepted) showAcceptedSubmission();
-          else {
-            showMessage('Your previous session has ended and its responses are ready to save. Please continue saving them; do not repeat the task.');
-            addButton('Save my responses', uploadSubmission);
-            addButton('Download backup', downloadBackup);
-          }
-          return;
+      if (saved) {
+        submission = saved;
+        uploadAccepted = saved.accepted === true;
+        fullscreenRestartBlocked = saved.terminationReason === 'fullscreen_exit' && saved.practiceStarted === true;
+        if (uploadAccepted) showAcceptedSubmission();
+        else {
+          showMessage((fullscreenRestartBlocked ? fullscreenExitRestartMessage + ' ' : '') + 'Your previous session has ended and its responses are ready to save. Please continue saving them; do not repeat the task.');
+          addButton('Save my responses', uploadSubmission);
+          addButton('Download backup', downloadBackup);
         }
-      } catch (error) { console.warn('Could not restore a session backup.', error); }
+        return;
+      }
     }
-    var storedStatus = getStoredStudyStatus();
-    if (storedStatus && ['failed_verification', 'fullscreen_exit', 'excluded_comprehension', 'completed'].indexOf(storedStatus.status) !== -1) {
+    if (storedStatus && ['failed_verification', 'excluded_comprehension', 'completed'].indexOf(storedStatus.status) !== -1) {
       if (storedStatus.status === 'completed') {
         submission = { completed: true };
         uploadAccepted = true;
