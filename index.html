@@ -367,7 +367,8 @@
 
 <script>
   // STUDY SETTINGS: paste the completion URL OR code from your Connect project.
-  // Preview with ?preview=1. Preview never uploads or returns a completion code.
+  // Blank completion settings automatically enable preview; ?preview=1 also forces it.
+  // Preview never uploads or returns a completion code.
   var DATAPIPE_EXPERIMENT_ID = 'SxwHNCUzbN5m';
   var CONNECT_COMPLETION_URL = '';
   var CONNECT_COMPLETION_CODE = '';
@@ -379,7 +380,7 @@
   }
 
   var urlParameters = new URLSearchParams(window.location.search);
-  var previewMode = urlParameters.get('preview') === '1';
+  var previewMode = urlParameters.get('preview') === '1' || (!CONNECT_COMPLETION_URL && !CONNECT_COMPLETION_CODE);
   var connectParticipantId = urlParameters.get('participantId') || urlParameters.get('CONNECT_PID') || '';
   var connectProjectId = urlParameters.get('projectId') || urlParameters.get('PROJECT_ID') || '';
   var connectAssignmentId = urlParameters.get('assignmentId') || urlParameters.get('ASSIGNMENT_ID') || '';
