@@ -184,6 +184,15 @@
       margin-bottom: 20px;
     }
 
+    .axis-rating-question {
+      width: max-content;
+      position: relative;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: min(24px, 2vw);
+    }
+
     .axis-emphasis {
       color: white;
       font-weight: bold;
@@ -328,7 +337,9 @@
     .setup-page p { margin: 20px 0; }
     .setup-page li { margin: 16px 0; }
     .setup-page .doc-red { color: #c00000; font-weight: 700; }
+    .setup-page .gray-highlight { background: rgb(128, 128, 128); color: white; font-size: 22px; padding: 1px 5px; }
     .setup-page .instruction-figure { display: block; width: min(770px, 100%); height: auto; margin: 26px auto; }
+    .setup-page .instruction-figure-small { width: min(600px, 100%); }
     .setup-page .fixation-figure { width: min(400px, 100%); }
     .setup-page .jspsych-btn, #jspsych-content:has(.fullscreen-message) .jspsych-btn {
       background: #2f80ed; color: #fff; border: 1px solid #1f5fbf;
@@ -459,7 +470,8 @@
     screen_resolution: getScreenResolution()
   });
 
-  var startText = 'Practice is complete. The main task is about to begin.\n\nPlease stay focused until you finish the task.\n\nWhen you are ready, press the SPACEBAR to begin the main task';
+  var practiceStartText = 'You will begin with 3 practice trials.\n\nYour practice responses will not be included in the main analysis.\n\nPlease press the "SPACEBAR" to begin practice.';
+  var startText = 'Practice completed! The main task is about to begin.\n\nYour decision time will be recorded, so once the task begins, please do not get distracted.\n\nPlease stay focused until you finish the task.\n\nIf you are ready, press the "SPACEBAR" to start immediately.';
 
   function instructionScreen(text) {
     return {
@@ -475,16 +487,16 @@
     return '<div class="setup-page"><div class="study-shell"><div class="qualtrics-topbar">Monetary Amount Rating Task</div><div class="qualtrics-card">' + content + '</div></div></div>';
   }
 
-  function ratingExampleHtml() {
+  function ratingExampleHtml(smaller) {
     // Static illustration of the existing rating screen: gain large, loss small.
-    return '<svg class="instruction-figure" viewBox="0 0 1920 1080" role="img" aria-label="Example rating screen: large +7 on the left, small minus 4 on the right, and a loss rating scale with no initial marker." xmlns="http://www.w3.org/2000/svg">' +
+    return '<svg class="instruction-figure' + (smaller ? ' instruction-figure-small' : '') + '" viewBox="0 0 1920 1080" role="img" aria-label="Example rating screen: large +7 on the left, small minus 4 on the right, aligned along the bottom, and a loss rating scale with no initial marker." xmlns="http://www.w3.org/2000/svg">' +
       '<rect width="1920" height="1080" fill="rgb(128,128,128)"/>' +
       '<g fill="white" font-family="Microsoft YaHei, Arial, sans-serif" text-anchor="middle">' +
-      '<text x="605" y="389" dominant-baseline="central" font-size="496.8">+7</text>' +
-      '<text x="1315" y="389" dominant-baseline="central" font-size="199.8">-4</text>' +
-      '<text x="960" y="764" font-size="24">Based on your first impression, please rate how large the <tspan font-weight="bold">loss amount</tspan> shown above seems to you.</text>' +
-      '<text x="420" y="875" text-anchor="start" font-size="24">Very small</text>' +
-      '<text x="1500" y="875" text-anchor="end" font-size="24">Very large</text></g>' +
+      '<text x="605" y="580" font-size="496.8">+7</text>' +
+      '<text x="1315" y="580" font-size="199.8">-4</text>' +
+      '<text x="960" y="764" font-size="40">Based on your first impression, please rate how large the <tspan font-weight="bold">loss amount</tspan> above seems to you.</text>' +
+      '<text x="420" y="875" text-anchor="start" font-size="40">Very small</text>' +
+      '<text x="1500" y="875" text-anchor="end" font-size="40">Very large</text></g>' +
       '<line x1="420" y1="830" x2="1500" y2="830" stroke="white" stroke-opacity=".85" stroke-width="6" stroke-linecap="round"/></svg>';
   }
 
@@ -496,7 +508,7 @@
     '<p>For example, in the display below, “<strong>+7</strong>” represents a gain of $7, and “<strong>−4</strong>” represents a loss of $4. In this example, the prompt asks you to rate the loss amount, so the amount you are rating is $4. Please <strong class="doc-red">click on the scale</strong> to submit your rating, and it will then automatically advance to the next trial.</p>' +
     ratingExampleHtml() + '<p>If everything is clear, click <strong>“Next”</strong> to continue.</p>',
 
-    ratingExampleHtml() + '<p>Please note:</p><ol>' +
+    ratingExampleHtml(true) + '<p>Please note:</p><ol>' +
     '<li>The two numbers may appear in <strong>different font sizes</strong>, as shown above. It is not relevant to your rating.</li>' +
     '<li>On each trial, you will be asked to rate either the gain amount or the loss amount. Which amount you rate will be <strong>determined at random</strong>. Please read the prompt on each trial.</li>' +
     '<li><strong>Your response <span class="doc-red">cannot be changed</span> once you <span class="doc-red">click</span> the slider.</strong> The scale has no preselected response. Your response will be recorded immediately, and the task will automatically advance to the next trial.</li>' +
@@ -505,7 +517,7 @@
 
     '<p>Before each trial, a small dot will appear on the screen, as shown below.</p>' +
     '<p><strong>You do not need to press any keys or click the mouse</strong> while the dot is displayed. After a random interval of approximately <strong>1–2 seconds</strong>, the next trial will appear automatically.</p>' +
-    '<svg class="instruction-figure fixation-figure" viewBox="0 0 1920 1080" role="img" aria-label="A small white fixation dot in the center of a gray screen." xmlns="http://www.w3.org/2000/svg"><rect width="1920" height="1080" fill="rgb(128,128,128)"/><circle cx="960" cy="540" r="9" fill="white"/></svg>' +
+    '<svg class="instruction-figure fixation-figure" viewBox="0 0 1920 1080" role="img" aria-label="A white fixation dot enlarged for illustration in the center of a gray screen." xmlns="http://www.w3.org/2000/svg"><rect width="1920" height="1080" fill="rgb(128,128,128)"/><circle cx="960" cy="540" r="24" fill="white"/></svg>' +
     '<p>If everything is clear, click <strong>“Next”</strong> to continue.</p>'
   ];
 
@@ -529,6 +541,29 @@
     if (previewMode) return null;
     try { return JSON.parse(window.localStorage.getItem(studyLockKey) || 'null'); }
     catch (error) { return null; }
+  }
+
+  function practiceOverviewTrial() {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: setupShell(
+        '<p>Congratulations! You answered all questions correctly.</p>' +
+        '<p>The task takes about <strong>10–13 minutes</strong> and includes about <strong>200 trials</strong> with one break. The background will turn <strong class="gray-highlight">GRAY</strong>, and you will begin with three practice trials.</p>' +
+        '<p>As a reminder, please rate how large the specified amount seems to you. For losses, rate the amount lost. For example, “−7” means a loss of $7. The scale runs from “Very small” on the left to “Very large” on the right.</p>' +
+        '<p>Please stay in full-screen mode. If you exit, your session will end and cannot be restarted.</p>' +
+        '<p>Click “Next” when you are ready to begin.</p>' +
+        '<button id="practice-overview-next" class="jspsych-btn" type="button">Next</button>'
+      ),
+      choices: 'NO_KEYS',
+      data: { task_trial_index: 0, trial_part: 'practice_overview' },
+      on_load: function () {
+        var button = document.getElementById('practice-overview-next');
+        button.addEventListener('click', function () {
+          button.disabled = true;
+          jsPsych.finishTrial({ elapsed_time: getElapsedTime() });
+        });
+      }
+    };
   }
 
   function radioQuestion(name, prompt, options, scale, endpoints) {
@@ -577,27 +612,27 @@
   function comprehensionCheckTrial() {
     var content = '<h2>Comprehension Check</h2><p>Please answer the following questions to check your understanding of the task.</p>' +
       radioQuestion('comprehension_q1', '1. What should you rate on each trial, based on your first impression?', [
-        ['A', 'A. The font size used to display the gain amount.'],
-        ['B', 'B. The font size used to display either the gain amount or the loss amount.'],
-        ['C', 'C. How large either the gain amount or the loss amount seems to you, as specified in the prompt.'],
-        ['D', 'D. How large both the gain amount and the loss amount seem to you, at the same time.']
+        ['A', 'The font size used to display the gain amount.'],
+        ['B', 'The font size used to display either the gain amount or the loss amount.'],
+        ['C', 'How large either the gain amount or the loss amount seems to you, as specified in the prompt.'],
+        ['D', 'How large both the gain amount and the loss amount seem to you, at the same time.']
       ]) +
       radioQuestion('comprehension_q2', '2. Which statement about the numbers shown on each trial is correct?', [
-        ['A', 'A. A number shown on the screen could be 10.'],
-        ['B', 'B. The smallest possible number is -1.'],
-        ['C', 'C. The numbers range from 3 to 9.'],
-        ['D', 'D. The absolute values of the numbers range from 3 to 9.']
+        ['A', 'A number shown on the screen could be 10.'],
+        ['B', 'The smallest possible number is -1.'],
+        ['C', 'The numbers range from 3 to 9.'],
+        ['D', 'The absolute values of the numbers range from 3 to 9.']
       ]) +
       radioQuestion('comprehension_q3', '3. Which statement about the rating scale is correct?', [
-        ['A', 'A. The left endpoint is 3, and the right endpoint is 9.'],
-        ['B', 'B. The left endpoint is “Very small,” and the right endpoint is “Very large.”'],
-        ['C', 'C. The left endpoint is 1, and the right endpoint is 10.']
+        ['A', 'The left endpoint is 3, and the right endpoint is 9.'],
+        ['B', 'The left endpoint is “Very small,” and the right endpoint is “Very large.”'],
+        ['C', 'The left endpoint is 1, and the right endpoint is 10.']
       ]) +
       radioQuestion('comprehension_q4', '4. Which of the following statements about the task is correct?', [
-        ['A', 'A. You need to take the font sizes of the numbers into account.'],
-        ['B', 'B. Because positive numbers are greater than negative numbers, a gain amount must receive a higher rating than a loss amount.'],
-        ['C', 'C. Once you click on the scale, you cannot change your response.'],
-        ['D', 'D. You need to click when the small dot appears on the screen.']
+        ['A', 'You need to take the font sizes of the numbers into account.'],
+        ['B', 'Because positive numbers are greater than negative numbers, a gain amount must receive a higher rating than a loss amount.'],
+        ['C', 'Once you click on the scale, you cannot change your response.'],
+        ['D', 'You need to click when the small dot appears on the screen.']
       ]);
     var fields = [1, 2, 3, 4].map(function (number) { return { name: 'comprehension_q' + number }; });
     return questionnaireTrial('comprehension_check', 1, content, fields, function (result) {
@@ -904,8 +939,8 @@
       question = '<span class="axis-emphasis">Attention check:</span> Please click "Very large" at the far right end of the scale.';
     } else {
       question = row.target_valence === 'gain' ?
-        'Based on your first impression, please rate how large the <span class="axis-emphasis">gain amount</span> shown above seems to you.' :
-        'Based on your first impression, please rate how large the <span class="axis-emphasis">loss amount</span> shown above seems to you.';
+        'Based on your first impression, please rate how large the <span class="axis-emphasis">gain amount</span> above seems to you.' :
+        'Based on your first impression, please rate how large the <span class="axis-emphasis">loss amount</span> above seems to you.';
     }
 
     return '' +
@@ -916,7 +951,7 @@
         '</div>' +
         '<div id="axis-form">' +
           '<div class="axis-block">' +
-            '<div class="axis-question">' + question + '</div>' +
+            '<div class="axis-question' + (row.trial_part === 'attention_check' ? '' : ' axis-rating-question') + '">' + question + '</div>' +
             '<div class="slider-wrap">' +
               '<input class="axis-slider unmoved" id="target-slider" name="target_position" type="range" min="0" max="10" step="0.01" value="5">' +
               '<div class="axis-label-row"><span>Very small</span><span>Very large</span></div>' +
@@ -1260,7 +1295,7 @@
     message: '<div class="fullscreen-message"><h2>Welcome to the Study</h2>' +
       '<p>The purpose of this study is to examine how people perceive monetary amounts. Your careful participation is very important to us.</p>' +
       '<p>Your responses will be used for research purposes only. Your participation is voluntary. You have the right to withdraw from the study at any time.</p>' +
-      '<p>This study must be completed on a <strong>desktop</strong> or <strong>laptop computer</strong>. Please enter fullscreen mode to begin. <span class="fullscreen-warning">If you exit fullscreen mode before the study ends, the study will stop automatically.</span></p>' +
+      '<p>This study must be completed on a <strong>desktop</strong> or <strong>laptop computer</strong>. Please enter fullscreen mode to begin. <strong class="fullscreen-warning">If you exit fullscreen mode before the study ends, the study will stop automatically.</strong></p>' +
       '<p>By checking the box below and continuing, you confirm that you have read the information above and agree to participate in this study.</p>' +
       '<label class="fullscreen-consent"><input id="ethics-consent" type="checkbox"><span>I acknowledge the information above and agree to participate in this study.</span></label></div>',
     button_label: 'Enter fullscreen and start',
@@ -1301,6 +1336,9 @@
     timeline: instructionAndCheckTimeline,
     loop_function: function () { return !comprehensionPassed && comprehensionAttempt < 2; }
   });
+
+  timeline.push(practiceOverviewTrial());
+  timeline.push(instructionScreen(practiceStartText));
 
   var practiceTimeline = [];
   for (var p = 0; p < practiceTrials.length; p++) {
