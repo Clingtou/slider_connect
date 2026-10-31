@@ -252,7 +252,10 @@
     input.axis-slider.unmoved::-webkit-slider-thumb { opacity: 0; }
     input.axis-slider.unmoved::-moz-range-thumb { opacity: 0; }
 
-    .virtual-rating-cursor { position: fixed; top: 0; left: 0; width: 20px; height: 28px; pointer-events: none; z-index: 1000; visibility: hidden; }
+    .virtual-rating-cursor { position: fixed; top: 0; left: 0; width: 20px; height: 28px; overflow: visible; pointer-events: none; z-index: 1000; visibility: hidden; }
+    .virtual-rating-cursor .cursor-hand { display: none; }
+    .virtual-rating-cursor.is-clickable .cursor-arrow { display: none; }
+    .virtual-rating-cursor.is-clickable .cursor-hand { display: inline; }
     .virtual-mouse-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgb(128, 128, 128); color: #111; cursor: auto; }
     .virtual-mouse-card { box-sizing: border-box; width: min(700px, calc(100vw - 64px)); padding: 32px; background: #fff; text-align: center; font: 20px/1.5 Arial, sans-serif; }
     .virtual-mouse-card .jspsych-btn { padding: 12px 28px; background: #2f80ed; color: #fff; border: 1px solid #1f5fbf; font-size: 20px; }
@@ -507,6 +510,7 @@
       active.y = clamp(active.y, window.innerHeight);
       active.element.style.transform = 'translate(' + active.x + 'px, ' + active.y + 'px)';
       active.element.style.visibility = isLocked() && !active.paused ? 'visible' : 'hidden';
+      if (typeof active.onMove === 'function') active.onMove(active.x, active.y);
     }
 
     function detach() {
@@ -653,7 +657,7 @@
         detach();
         active = {
           element: options.element, x: options.x, y: options.y,
-          onClick: options.onClick, onPause: options.onPause, onResume: options.onResume,
+          onClick: options.onClick, onMove: options.onMove, onPause: options.onPause, onResume: options.onResume,
           paused: false
         };
         if (!isLocked()) {
@@ -1203,7 +1207,13 @@
             '</div>' +
           '</div>' +
         '</div>' +
-        '<svg id="rating-cursor" class="virtual-rating-cursor" viewBox="0 0 20 28" aria-hidden="true"><path d="M1 1 L1 22 L6.5 17 L10.5 26 L14.5 24 L10.5 15.5 L18 15.5 Z" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round"/></svg>' +
+        '<svg id="rating-cursor" class="virtual-rating-cursor" viewBox="0 0 20 28" aria-hidden="true">' +
+          '<path class="cursor-arrow" d="M1 1 L1 22 L6.5 17 L10.5 26 L14.5 24 L10.5 15.5 L18 15.5 Z" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round"/>' +
+          '<g class="cursor-hand" transform="translate(-8 0)" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round">' +
+            '<path d="M7 13 V3 C7 0.3 11 0.3 11 3 V11 C11 8.5 15 8.5 15 11 V12 C15 9.5 19 9.5 19 12 V14 C19 11.5 23 11.5 23 14 V19 C23 22 21 24 20 27 H10 C9 24 7 22 5 20 L1 16 C-1 13 2 11 4 13 L7 16 Z"/>' +
+            '<path d="M11 11 V17 M15 12 V17 M19 14 V18" fill="none"/>' +
+          '</g>' +
+        '</svg>' +
       '</div>';
   }
 
@@ -1239,6 +1249,7 @@
       },
       on_load: function () {
         var slider = document.getElementById('target-slider');
+        var cursor = document.getElementById('rating-cursor');
         var startTime = performance.now();
         var positions = [];
         var rts = [];
@@ -1274,19 +1285,30 @@
           });
         }
 
-        function recordFirstSliderAction(x, y, event) {
-          if (moved || finished || experimentAborted || experimentCompleted || !virtualMouse.isLocked() || event.button !== 0) return;
+        function canClickSlider(x, y) {
+          if (moved || finished || experimentAborted || experimentCompleted || !virtualMouse.isLocked()) return false;
           var bounds = slider.getBoundingClientRect();
           var thumbSize = 34;
           var onTrack = x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
           var onInitialThumb = Math.abs(x - (bounds.left + bounds.width / 2)) <= thumbSize / 2 && Math.abs(y - (bounds.top + bounds.height / 2)) <= thumbSize / 2;
-          if (!onTrack && !onInitialThumb) return;
+          return onTrack || onInitialThumb;
+        }
+
+        function updateCursorShape(x, y) {
+          cursor.classList.toggle('is-clickable', canClickSlider(x, y));
+        }
+
+        function recordFirstSliderAction(x, y, event) {
+          if (event.button !== 0 || !canClickSlider(x, y)) return;
+          var bounds = slider.getBoundingClientRect();
+          var thumbSize = 34;
           // Match the native range's thumb-center travel, rather than the full element width.
           var proportion = Math.max(0, Math.min(1, (x - bounds.left - thumbSize / 2) / (bounds.width - thumbSize)));
           slider.value = String(Math.round(proportion * 1000) / 100);
           var nowRt = Math.round(performance.now() - startTime);
           slider.classList.remove('unmoved');
           moved = true;
+          updateCursorShape(x, y);
           positions.push(parseFloat(slider.value));
           rts.push(nowRt);
           slider.style.pointerEvents = 'none';
@@ -1300,10 +1322,11 @@
         slider.addEventListener('input', function () { slider.value = String(moved ? positions[0] : 5); });
         var initialBounds = slider.getBoundingClientRect();
         virtualMouse.attach({
-          element: document.getElementById('rating-cursor'),
+          element: cursor,
           x: initialBounds.left + initialBounds.width / 2,
           y: window.innerHeight * 0.92,
           onClick: recordFirstSliderAction,
+          onMove: updateCursorShape,
           onPause: function () {
             if (moved || finished || interruptionStartedAt !== null) return;
             interruptionCount++;
