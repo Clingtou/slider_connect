@@ -225,6 +225,7 @@
     }
 
     input.axis-slider::-webkit-slider-thumb {
+      box-sizing: border-box;
       -webkit-appearance: none;
       appearance: none;
       width: 34px;
@@ -237,6 +238,7 @@
     }
 
     input.axis-slider::-moz-range-thumb {
+      box-sizing: border-box;
       width: 34px;
       height: 34px;
       border-radius: 50%;
@@ -249,6 +251,11 @@
     /* 初始状态不显示滑块圆点：被试第一次点击评分线后圆点才出现。 */
     input.axis-slider.unmoved::-webkit-slider-thumb { opacity: 0; }
     input.axis-slider.unmoved::-moz-range-thumb { opacity: 0; }
+
+    .virtual-rating-cursor { position: fixed; top: 0; left: 0; width: 20px; height: 28px; pointer-events: none; z-index: 1000; visibility: hidden; }
+    .virtual-mouse-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgb(128, 128, 128); color: #111; cursor: auto; }
+    .virtual-mouse-card { box-sizing: border-box; width: min(700px, calc(100vw - 64px)); padding: 32px; background: #fff; text-align: center; font: 20px/1.5 Arial, sans-serif; }
+    .virtual-mouse-card .jspsych-btn { padding: 12px 28px; background: #2f80ed; color: #fff; border: 1px solid #1f5fbf; font-size: 20px; }
 
     .axis-label-row {
       width: 100%;
@@ -416,7 +423,7 @@
   var DATAPIPE_EXPERIMENT_ID = 'SxwHNCUzbN5m';
   var CONNECT_COMPLETION_URL = 'https://connect.cloudresearch.com/participant/project/02C29A2CB0/complete';
   var CONNECT_COMPLETION_CODE = '02C29A2CB0';
-  var STUDY_VERSION = 'connect-en-2026-10-28';
+  var STUDY_VERSION = 'connect-en-2026-10-31-virtual-cursor';
 
   if (typeof initJsPsych !== 'function' || typeof jsPsychHtmlKeyboardResponse === 'undefined' || typeof jsPsychFullscreen === 'undefined') {
     document.body.innerHTML = '<div class="submission-screen"><p>The task could not load. Please check your connection and reopen the study link.</p></div>';
@@ -457,6 +464,7 @@
   var jsPsych = initJsPsych({
     use_webaudio: false,
     on_finish: function () {
+      virtualMouse.stop();
       window.gain_loss_magnitude_data_json = jsPsych.data.get().json();
       window.gain_loss_magnitude_data_csv = getCleanCsv();
       if (entryBlockMessage) { showEntryEnd(entryBlockMessage); return; }
@@ -473,6 +481,200 @@
   var experimentCompleted = false;
   var experimentAborted = false;
   var experimentStartPerfTime = performance.now();
+
+  var virtualMouse = (function () {
+    var enabled = false;
+    var active = null;
+    var readyCallback = null;
+    var requestPending = false;
+    var requestVersion = 0;
+    var overlay = null;
+    var overlayMessage = null;
+    var resumeButton = null;
+    var lockTarget = document.documentElement;
+
+    function isLocked() {
+      return enabled && document.pointerLockElement === lockTarget;
+    }
+
+    function clamp(value, limit) {
+      return Math.max(0, Math.min(Math.max(0, limit - 1), Number.isFinite(value) ? value : 0));
+    }
+
+    function render() {
+      if (!active) return;
+      active.x = clamp(active.x, window.innerWidth);
+      active.y = clamp(active.y, window.innerHeight);
+      active.element.style.transform = 'translate(' + active.x + 'px, ' + active.y + 'px)';
+      active.element.style.visibility = isLocked() && !active.paused ? 'visible' : 'hidden';
+    }
+
+    function detach() {
+      if (active) active.element.style.visibility = 'hidden';
+      active = null;
+    }
+
+    function hideOverlay() {
+      if (overlay) overlay.remove();
+      overlay = null;
+      overlayMessage = null;
+      resumeButton = null;
+    }
+
+    function showOverlay(message, pending) {
+      if (!enabled) return;
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'virtual-mouse-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'Mouse control');
+        var card = document.createElement('div');
+        card.className = 'virtual-mouse-card';
+        overlayMessage = document.createElement('p');
+        overlayMessage.setAttribute('aria-live', 'polite');
+        resumeButton = document.createElement('button');
+        resumeButton.type = 'button';
+        resumeButton.className = 'jspsych-btn';
+        resumeButton.addEventListener('click', function () { requestLock(); });
+        card.appendChild(overlayMessage);
+        card.appendChild(resumeButton);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+      }
+      overlayMessage.textContent = message;
+      resumeButton.textContent = pending ? 'Please wait...' : 'Resume';
+      resumeButton.disabled = pending;
+      if (!pending) resumeButton.focus();
+    }
+
+    function pauseActive() {
+      if (!active || active.paused) return;
+      active.paused = true;
+      active.element.style.visibility = 'hidden';
+      if (typeof active.onPause === 'function') active.onPause();
+    }
+
+    function lockReady() {
+      if (!isLocked()) return;
+      requestPending = false;
+      hideOverlay();
+      if (active && active.paused) {
+        active.paused = false;
+        if (typeof active.onResume === 'function') active.onResume();
+      }
+      render();
+      // Clear first: later pointerlockchange events must not advance the trial again.
+      var callback = readyCallback;
+      readyCallback = null;
+      if (callback) callback();
+    }
+
+    function lockFailed(message) {
+      if (!enabled || isLocked()) return;
+      requestPending = false;
+      pauseActive();
+      showOverlay(typeof message === 'string' ? message : 'Mouse control could not be enabled. Click Resume to try again and continue the task.', false);
+    }
+
+    function releaseLock() {
+      if (document.pointerLockElement !== lockTarget || typeof document.exitPointerLock !== 'function') return;
+      try { document.exitPointerLock(); }
+      catch (error) { console.warn('Could not release mouse control.', error); }
+    }
+
+    function requestLock() {
+      if (!enabled || requestPending) return;
+      if (isLocked()) { lockReady(); return; }
+      requestPending = true;
+      var version = ++requestVersion;
+      showOverlay('Enabling mouse control. Please respond to any browser permission prompt.', true);
+      try {
+        if (typeof lockTarget.requestPointerLock !== 'function') {
+          lockFailed('This browser cannot enable the virtual cursor. Please reopen the study in an up-to-date desktop version of Chrome, Edge, or Firefox.');
+          return;
+        }
+        var result = lockTarget.requestPointerLock();
+        // Older implementations report completion only through document events.
+        if (result && typeof result.then === 'function') {
+          result.then(function () {
+            if (!enabled) { releaseLock(); return; }
+            if (version === requestVersion) lockReady();
+          }, function () {
+            if (version === requestVersion) lockFailed();
+          });
+        }
+      } catch (error) { lockFailed(); }
+    }
+
+    document.addEventListener('pointerlockchange', function () {
+      if (!enabled) { releaseLock(); return; }
+      if (isLocked()) { lockReady(); return; }
+      requestPending = false;
+      pauseActive();
+      showOverlay('Mouse control was released. Click Resume to continue the task.', false);
+    });
+    document.addEventListener('pointerlockerror', lockFailed);
+    document.addEventListener('mousemove', function (event) {
+      if (!isLocked() || !active || active.paused) return;
+      active.x += Number.isFinite(event.movementX) ? event.movementX : 0;
+      active.y += Number.isFinite(event.movementY) ? event.movementY : 0;
+      render();
+    });
+    document.addEventListener('mousedown', function (event) {
+      if (!isLocked() || !active || active.paused || event.button !== 0) return;
+      event.preventDefault();
+      if (typeof active.onClick === 'function') active.onClick(active.x, active.y, event);
+    });
+    window.addEventListener('resize', render);
+
+    function blockCoveredKeys(event) {
+      if (!enabled || !overlay) return;
+      // Escape keeps its browser default, including the existing fullscreen exit rule.
+      if (event.key !== 'Escape') event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.type === 'keydown' && !event.repeat && resumeButton && !resumeButton.disabled) {
+        if (event.key === 'Tab') resumeButton.focus();
+        else if (event.target === resumeButton && (event.key === 'Enter' || event.key === ' ')) requestLock();
+      }
+    }
+    window.addEventListener('keydown', blockCoveredKeys, true);
+    window.addEventListener('keyup', blockCoveredKeys, true);
+    window.addEventListener('keypress', blockCoveredKeys, true);
+
+    return {
+      start: function (onReady) {
+        if (experimentAborted || experimentCompleted) return;
+        enabled = true;
+        if (!readyCallback && typeof onReady === 'function') readyCallback = onReady;
+        requestLock();
+      },
+      attach: function (options) {
+        detach();
+        active = {
+          element: options.element, x: options.x, y: options.y,
+          onClick: options.onClick, onPause: options.onPause, onResume: options.onResume,
+          paused: false
+        };
+        if (!isLocked()) {
+          pauseActive();
+          if (enabled) showOverlay('Mouse control was released. Click Resume to continue the task.', requestPending);
+        }
+        render();
+      },
+      detach: detach,
+      isLocked: isLocked,
+      stop: function () {
+        enabled = false;
+        requestVersion++;
+        requestPending = false;
+        readyCallback = null;
+        detach();
+        hideOverlay();
+        releaseLock();
+      }
+    };
+  })();
 
   function getElapsedTime() {
     return Math.round(performance.now() - experimentStartPerfTime);
@@ -593,9 +795,14 @@
       data: { task_trial_index: 0, trial_part: 'practice_overview' },
       on_load: function () {
         var button = document.getElementById('practice-overview-next');
+        var advancing = false;
         button.addEventListener('click', function () {
+          if (advancing) return;
+          advancing = true;
           button.disabled = true;
-          jsPsych.finishTrial({ elapsed_time: getElapsedTime() });
+          virtualMouse.start(function () {
+            jsPsych.finishTrial({ elapsed_time: getElapsedTime() });
+          });
         });
       }
     };
@@ -991,15 +1198,17 @@
           '<div class="axis-block">' +
             '<div class="axis-question' + (row.trial_part === 'attention_check' ? '' : ' axis-rating-question') + '">' + question + '</div>' +
             '<div class="slider-wrap">' +
-              '<input class="axis-slider unmoved" id="target-slider" name="target_position" type="range" min="0" max="10" step="0.01" value="5">' +
+              '<input class="axis-slider unmoved" id="target-slider" name="target_position" type="range" min="0" max="10" step="0.01" value="5" tabindex="-1" style="pointer-events:none;">' +
               '<div class="axis-label-row"><span>Very small</span><span>Very large</span></div>' +
             '</div>' +
           '</div>' +
         '</div>' +
+        '<svg id="rating-cursor" class="virtual-rating-cursor" viewBox="0 0 20 28" aria-hidden="true"><path d="M1 1 L1 22 L6.5 17 L10.5 26 L14.5 24 L10.5 15.5 L18 15.5 Z" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round"/></svg>' +
       '</div>';
   }
 
   function makeAxisTrial(row) {
+    var feedbackTimer = null;
     return {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: renderAxisPage(row),
@@ -1035,7 +1244,9 @@
         var rts = [];
         var moved = false;
         var finished = false;
-        var pointerResponseRt = null;
+        var interruptionCount = 0;
+        var interruptionMs = 0;
+        var interruptionStartedAt = null;
 
         function finishBy(reason) {
           if (finished) return;
@@ -1057,34 +1268,57 @@
             slider_rts_json: rtJson,
             target_slider_rts_json: rtJson,
             target_rt: rts.length > 0 ? rts[rts.length - 1] : null,
+            cursor_interruption_count: interruptionCount,
+            cursor_interruption_ms: Math.round(interruptionMs),
             elapsed_time: getElapsedTime()
           });
         }
 
-        function recordFirstSliderAction() {
-          if (moved || finished) {
-            if (moved) slider.value = String(positions[0]);
-            return;
-          }
-          var nowRt = pointerResponseRt === null ? Math.round(performance.now() - startTime) : pointerResponseRt;
+        function recordFirstSliderAction(x, y, event) {
+          if (moved || finished || experimentAborted || experimentCompleted || !virtualMouse.isLocked() || event.button !== 0) return;
+          var bounds = slider.getBoundingClientRect();
+          var thumbSize = 34;
+          var onTrack = x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+          var onInitialThumb = Math.abs(x - (bounds.left + bounds.width / 2)) <= thumbSize / 2 && Math.abs(y - (bounds.top + bounds.height / 2)) <= thumbSize / 2;
+          if (!onTrack && !onInitialThumb) return;
+          // Match the native range's thumb-center travel, rather than the full element width.
+          var proportion = Math.max(0, Math.min(1, (x - bounds.left - thumbSize / 2) / (bounds.width - thumbSize)));
+          slider.value = String(Math.round(proportion * 1000) / 100);
+          var nowRt = Math.round(performance.now() - startTime);
           slider.classList.remove('unmoved');
           moved = true;
           positions.push(parseFloat(slider.value));
           rts.push(nowRt);
           slider.style.pointerEvents = 'none';
 
-          setTimeout(function () {
+          feedbackTimer = jsPsych.pluginAPI.setTimeout(function () {
             finishBy('click');
           }, 700);
         }
 
-        slider.addEventListener('input', recordFirstSliderAction);
-        slider.addEventListener('pointerdown', function (event) {
-          if (moved || finished || event.isPrimary === false || event.button !== 0) return;
-          pointerResponseRt = Math.round(performance.now() - startTime);
-          // Let the native range update first; unchanged midpoint clicks need this fallback.
-          setTimeout(recordFirstSliderAction, 0);
+        // The range is a display; only the locked virtual pointer may submit a response.
+        slider.addEventListener('input', function () { slider.value = String(moved ? positions[0] : 5); });
+        var initialBounds = slider.getBoundingClientRect();
+        virtualMouse.attach({
+          element: document.getElementById('rating-cursor'),
+          x: initialBounds.left + initialBounds.width / 2,
+          y: window.innerHeight * 0.92,
+          onClick: recordFirstSliderAction,
+          onPause: function () {
+            if (moved || finished || interruptionStartedAt !== null) return;
+            interruptionCount++;
+            interruptionStartedAt = performance.now();
+          },
+          onResume: function () {
+            if (interruptionStartedAt === null) return;
+            interruptionMs += performance.now() - interruptionStartedAt;
+            interruptionStartedAt = null;
+          }
         });
+      },
+      on_finish: function () {
+        if (feedbackTimer !== null) clearTimeout(feedbackTimer);
+        virtualMouse.detach();
       }
     };
   }
@@ -1220,7 +1454,9 @@
       'post_investment_frequency',
       'post_numerical_ability',
       'post_family_social_position',
-      'post_comments'
+      'post_comments',
+      'cursor_interruption_count',
+      'cursor_interruption_ms'
     ];
 
     var rows = jsPsych.data.get().values().map(function (row) {
@@ -1278,6 +1514,8 @@
         slider_rts_json: row.slider_rts_json,
         target_slider_rts_json: row.target_slider_rts_json,
         target_rt: row.target_rt,
+        cursor_interruption_count: row.cursor_interruption_count,
+        cursor_interruption_ms: row.cursor_interruption_ms,
         break_index: row.break_index,
         completed_trials: row.completed_trials,
         questionnaire_page: row.questionnaire_page,
@@ -1309,6 +1547,7 @@
   function abortExperimentBecauseFullscreenExit() {
     if (experimentAborted || experimentCompleted) return;
     experimentAborted = true;
+    virtualMouse.stop();
     fullscreenAbortArmed = false;
     terminationReason = 'fullscreen_exit';
     fullscreenRestartBlocked = participantStateEnabled && practiceStarted;
@@ -1451,7 +1690,10 @@
     }
   }
 
-  postTaskTrials().forEach(function (trial) { timeline.push(trial); });
+  postTaskTrials().forEach(function (trial) {
+    trial.on_start = function () { virtualMouse.stop(); };
+    timeline.push(trial);
+  });
 
   var end_trial = {
     type: jsPsychHtmlKeyboardResponse,
@@ -1547,6 +1789,7 @@
   }
 
   function prepareSubmission() {
+    virtualMouse.stop();
     fullscreenAbortArmed = false;
     plannedFullscreenExit = true;
     captureSubmission();
